@@ -55,8 +55,8 @@ def naive_ukkonen(text: str):
                         existing_branch = Node(start=l+1, end=current_node.end)
                         current_node.end = l - 1
                         inserting_branch = Node(start=k+1, end=i)
-                        current_node.link[hash_ascii(text[l])] = existing_branch
-                        current_node.link[hash_ascii(text[k])] = inserting_branch
+                        current_node.edges[hash_ascii(text[l])] = existing_branch
+                        current_node.edges[hash_ascii(text[k])] = inserting_branch
                         reaches_end = True
                         break
 
@@ -82,7 +82,7 @@ def getinfo_tree_aux(node):
 
     result = [(node.start, node.end), {}]
 
-    for idx, connected_node in enumerate(node.link):
+    for idx, connected_node in enumerate(node.edges):
         if isinstance(connected_node, Node):
             result[1][chr(idx+MIN_ASCII)] = getinfo_tree_aux(connected_node)
 
