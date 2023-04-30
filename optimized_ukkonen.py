@@ -13,6 +13,7 @@ class Node:
         self.start: Optional[int] = start
         self.end: Optional[int] = end  # inclusive
         self.is_root = is_root
+        self.is_leaf = True  # set to false when brunching out
 
         # for suffix link
         self.suffix_link: Optional[Node] = None
@@ -25,104 +26,98 @@ class GlobalEnd:
     def increment(self):
         self.i += 1
 
+    def __str__(self):
+        return str(self.i)
 
-def naive_ukkonen(text: str):
+
+def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd, text: str) -> tuple[Optional[int], bool]:
+    reached_case3 = False
+    end: int = current_node.end.i if isinstance(current_node.end, GlobalEnd) else current_node.end
+
+    # case3: occurs when the substring inserting has length = 1 and there is an existing edge for it (from the root)
+    if k > i:
+        reached_case3 = True
+        return None, reached_case3
+
+    for existing_idx in range(current_node.start, end + 1):
+
+        # case 2 - branch out
+        if text[existing_idx] != text[k]:
+            # create two new nodes: the existing and the one inserting
+            # put them in node.link of the current node-> you hash first to find where to put
+            existing_branch = Node(start=existing_idx + 1, end=global_end)
+            current_node.end = existing_idx - 1
+            current_node.is_leaf = False
+            inserting_branch = Node(start=k + 1, end=global_end)
+            current_node.edges[hash_ascii(text[existing_idx])] = existing_branch
+            current_node.edges[hash_ascii(text[k])] = inserting_branch
+            reached_case3 = True
+            return None, reached_case3
+
+        # case 3 - the one already exists longer: stop
+        if k == i:
+            reached_case3 = True
+            return None, reached_case3
+
+        k += 1
+
+    return k, reached_case3
+
+def do_extension(j: int, i: int, global_end: GlobalEnd, root: Node, text: str) -> Optional[int]:
+    # iterates through the nodes to find where the current substring should go
+    current_node = root
+    k = j  # pointer to the index being compared of a current substring text[j:i+1]
+    reached_case3 = False
+    while True:
+        # print("comes here")
+        previous_node = current_node
+        current_node = previous_node.edges[hash_ascii(text[k])]
+
+        # case 2-alt: branch at the root; or, brunch at an internal node
+        if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
+            previous_node.edges[hash_ascii(text[k])] = Node(start=k+1, end=global_end)
+            break
+
+        # case 1: extension if there aren't other edges at a node
+        # occurs at middle (after at least 1 edge=branch=iteration)
+        if current_node is None and not previous_node.is_root and previous_node.is_leaf:
+            previous_node.start = k_prev_start
+            previous_node.end = global_end
+            break
+
+        # actual comparison
+        k_end, reached_case3 = compare_edge(k+1, current_node, i, global_end, text)
+
+        # reached the end already during the actual comparison(case2 or case3)
+        if k_end is None:
+            break
+
+        k_prev_start = k+1
+        k = k_end+1
+
+    j_next = j if reached_case3 else None
+
+    return j_next
+
+
+
+def ukkonen_v2(text: str) -> Node:
     # create implicit tree
 
     root = Node(is_root=True)
-    global_end = GlobalEnd(0)
+    global_end = GlobalEnd(-1)
+    j_next: Optional[int] = None  # used for showstopper; if this value is set an integer,this values represents the j to start the extension from
 
     for i in range(len(text)):
         global_end.increment()
 
-        start = prev_j if is_case_three else i
+        start = j_next if j_next is not None else i
+
         for j in range(start, i+1):
+            j_next = do_extension(j, i, global_end, root, text)
 
-            # iterates through the nodes to find where the current substring should go
-            current_node = root
-            k = j  # pointer to the index being compared of a current substing text[j:i+1]
-            while True:
-                # print("comes here")
-                previous_node = current_node
-                current_node = previous_node.edges[hash_ascii(text[k])]
-
-                # case 2-alt: branches at the root
-                if current_node is None and previous_node.is_root:
-                    previous_node.edges[hash_ascii(text[j])] = Node(start=j + 1, end=global_end)
-                    break
-
-                # case 1, or case 2-alt: extension if there aren't other edges; brunch out if there is another edge
-                # occurs at middle (after at least 1 edge=branch=iteration)
-                if current_node is None and not previous_node.is_root:
-                    previous_node.start = starting_k
-                    previous_node.end = global_end
-                    break
-
-                reaches_end = False
-                starting_k = k+1
-                is_case_three = False
-                end = current_node.i if isinstance(current_node, GlobalEnd) else current_node.end
-
-                for l in range(current_node.start, end+1):
-                    # case 2 - branch out
-                    if text[l] != text[k]:
-
-
-                        # create two new nodes: the existing and the one inserting
-                        # put them in node.link of the current node-> you hash first to find where to put
-                        existing_branch = Node(start=l+1, end=current_node.end)
-                        current_node.end = l - 1
-                        inserting_branch = Node(start=k+1, end=global_end)
-                        current_node.edges[hash_ascii(text[l])] = existing_branch
-                        current_node.edges[hash_ascii(text[k])] = inserting_branch
-                        reaches_end = True
-                        break
-
-                    # case 3 - the one already exists longer: stop
-                    if k == i:
-                        reaches_end = True
-                        is_case_three = True
-                        break
-
-                    k += 1  # update k
-
-                if reaches_end:
-                    break
-
-            if is_case_three:
-                prev_j = j
+            # reached case 3 during comparison
+            if j_next is not None:
                 break
 
-
     return root
-
-
-# for visualization purposes
-def getinfo_tree(root: Node):
-    return getinfo_tree_aux(root)
-
-
-def getinfo_tree_aux(node):
-
-    result = [(node.start, node.end), {}]
-
-    for idx, connected_node in enumerate(node.edges):
-        if isinstance(connected_node, Node):
-            result[1][chr(idx+MIN_ASCII)] = getinfo_tree_aux(connected_node)
-
-    return result
-
-
-def visualize_tree(collected_data):
-    pass
-
-
-if __name__ == "__main__":
-    root = naive_ukkonen("aaaa")
-    print(getinfo_tree(root))
-
-# case 1: there is no start/end
-# if current_node.start == current_node.end and i-k+1 > 1:
-#     previous_node.start = k+1
-#     previous_node.end = i
-#     break
