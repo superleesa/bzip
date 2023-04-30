@@ -1,4 +1,7 @@
 from optimized_ukkonen import ukkonen_v2, Node, MIN_ASCII, MAX_ASCII
+
+from pprint import pprint
+
 # from elias import elias_encode, elias_decode, decimal_to_bitarray
 #
 # encoded = elias_encode(561)
@@ -29,8 +32,8 @@ def visualize_tree(collected_data):
 
 
 if __name__ == "__main__":
-    root = ukkonen_v2("abcabx")
-    print(getinfo_tree(root))
+    root = ukkonen_v2("abcabxabcyab")
+    pprint(getinfo_tree(root))
 
 # case 1: there is no start/end
 # if current_node.start == current_node.end and i-k+1 > 1:

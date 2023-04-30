@@ -35,11 +35,12 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd, text
     end: int = current_node.end.i if isinstance(current_node.end, GlobalEnd) else current_node.end
 
     # case3: occurs when the substring inserting has length = 1 and there is an existing edge for it (from the root)
-    if k > i:
+    if k+1 > i:
         reached_case3 = True
         return None, reached_case3
 
     for existing_idx in range(current_node.start, end + 1):
+        k += 1
 
         # case 2 - branch out
         if text[existing_idx] != text[k]:
@@ -51,7 +52,6 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd, text
             inserting_branch = Node(start=k + 1, end=global_end)
             current_node.edges[hash_ascii(text[existing_idx])] = existing_branch
             current_node.edges[hash_ascii(text[k])] = inserting_branch
-            reached_case3 = True
             return None, reached_case3
 
         # case 3 - the one already exists longer: stop
@@ -59,7 +59,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd, text
             reached_case3 = True
             return None, reached_case3
 
-        k += 1
+
 
     return k, reached_case3
 
@@ -86,7 +86,7 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, root: Node, text: str) -
             break
 
         # actual comparison
-        k_end, reached_case3 = compare_edge(k+1, current_node, i, global_end, text)
+        k_end, reached_case3 = compare_edge(k, current_node, i, global_end, text)
 
         # reached the end already during the actual comparison(case2 or case3)
         if k_end is None:
