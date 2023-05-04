@@ -39,7 +39,7 @@ class ActivePointer:
 
 
 class SuffixLinkActivePointer(ActivePointer):
-    def __init__(self, node: Node, edge_idx: Optional[int] = None, length: int=0):
+    def __init__(self, node: Node, edge_idx: Optional[int] = None, length: int = 0):
         super().__init__()
 
         # if showstopper_activenode and node or not showstopper_activenode and not node:
@@ -65,6 +65,15 @@ class SuffixLinkActivePointer(ActivePointer):
 
     def update_node(self, node: Node):
         self.node = node
+
+    def __str__(self):
+        if self.edge_idx is None:
+            return "edge_idx is None"
+
+        pointed_outgoing_edge = self.node.get_node_using_idx(self.edge_idx)
+        start = pointed_outgoing_edge.start
+        end = self.node.end if isinstance(pointed_outgoing_edge.end, int) else pointed_outgoing_edge.end.i
+        return str((start, end))
 
 
 class Node:
@@ -177,7 +186,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
 
         # case 2 - branch out
         if text[existing_idx] != text[k]:
-            return k, reached_case3, branch_out(k, existing_idx, current_node, active_node, previous_branched_node,
+            return None, reached_case3, branch_out(k, existing_idx, current_node, active_node, previous_branched_node,
                                                 root, global_end, text)
 
         # case 3 - the one already exists longer: stop
@@ -187,7 +196,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
 
         k += 1
 
-    # extension needs to be continued
+    # requires a further traversal
     return k, reached_case3, previous_branched_node
 
 
@@ -213,10 +222,11 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     current_node: Optional[Node] = root
     k: int = j  # pointer to the index being compared of a current substring text[j:i+1]
     reached_case3: bool = False
-    active_edge_idx = None
+    active_edge_idx: Optional[int] = None
 
     # check active node to determine if we can use suffix link
     if active_node.node.suffix_link != root:
+        print("uses suffix link active node")
         # suffix link points to a node that is not node -> does not need to traverse naively
         k = active_node.j_start
         current_node = active_node.node.suffix_link
@@ -227,14 +237,15 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     while True:
         previous_node: Node = current_node  # the previous node the current substring visited
         # if we have an effective active node, it stores edge idx already
+        print("normal traversal, current k: ", k)
         edge_idx = active_edge_idx or hash_ascii(text[k])
-        print("roijoierj")
         active_edge_idx = None
         current_node = previous_node.edges[edge_idx]
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
             # active length update
+            #TODO might need to set_edge_idx
             active_node.set_length(previous_node.end - previous_node.start + 1)
 
             # previous_branched_node related procedure
@@ -314,24 +325,25 @@ def ukkonen_v3(text: str) -> Node:
         start = j_next if prev_was_case3 else i
 
         for j in range(start, i + 1):
+            print("inner loop: ", j, i)
 
             # check the showstopper here
             # showstopper
             if prev_was_case3:
-                print("comes here")
-                prev_was_case3 = False  # reinitialize
-
+                print("goes to: showstopper")
                 prev_was_case3, previous_branched_node, suffixlink_activenode = showstopper_extension(i,
                                                                                                       showstopper_pointer,
                                                                                                       previous_branched_node,
                                                                                                       global_end, root,
                                                                                                       text)
+                # print(prev_was_case3, suffixlink_activenode)
                 prev_was_showstopper = True
 
 
             # normal traversal
             else:
-                prev_was_case3 = False  # reset
+                print("goes to normal traversal", j, i)
+
                 prev_was_showstopper = False
 
                 # actual extension
@@ -407,6 +419,11 @@ class ShowstopperActivePointer(ActivePointer):
     def get_next_node_for_branch_out(self) -> Node:
         return self.node.get_node_using_idx(self.edge_idx)
 
+    def __str__(self):
+        pointed_outgoing_edge = self.node.get_node_using_idx(self.edge_idx)
+        start = pointed_outgoing_edge.start
+        end = self.node.end if isinstance(pointed_outgoing_edge.end, int) else pointed_outgoing_edge.end.i
+        return start, end
 
 def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
                           previous_branched_node: Node, global_end: GlobalEnd, root: Node, text: str) \
@@ -423,9 +440,6 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
     """
     is_case_three = False
     suffixlink_activenode = None
-
-    # TODO need to return suffixlink activenode
-    # TODO check showstopper
 
     # A: previous turn finished checking all chars in the previous edge
     # -> in this turn, comparison happens at embedded char
@@ -475,6 +489,7 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
 
     # case 2: different char -> branch out
     if text[i] != text[existing_char_idx]:
+        print("comes here brob")
         previous_branched_node = branch_out(i, existing_char_idx, pointer.get_next_node_for_branch_out(), pointer,
                                             previous_branched_node, root, global_end, text)
         suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.edge_idx, pointer.length)

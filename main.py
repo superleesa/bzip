@@ -1,5 +1,5 @@
-from optimized_ukkonen import ukkonen_v2, Node, MIN_ASCII, MAX_ASCII
-from optimized_ukkonen_v3 import ukkonen_v3
+from optimized_ukkonen import ukkonen_v2, MIN_ASCII, MAX_ASCII
+from optimized_ukkonen_v3 import ukkonen_v3, Node
 
 from pprint import pprint
 
@@ -33,7 +33,7 @@ def getinfo_tree_aux_v2(node, text):
     if node.start is None:
         result = [[], []]
     else:
-        result = [text[node.start: int(str(node.end))+1], []]
+        result = [text[node.start+1: int(str(node.end))+1], []]
 
     for idx, connected_node in enumerate(node.edges):
         if isinstance(connected_node, Node):
@@ -46,7 +46,8 @@ def getinfo_tree_aux_v2(node, text):
 
 
 if __name__ == "__main__":
-    text = "abab"
+    # text = "abab": this exmples does not require suffix link active node
+    text = "abxaby" # creates one suffix link but does not use it
     root = ukkonen_v3(text)
     pprint(getinfo_tree(root))
 
