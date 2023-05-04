@@ -27,13 +27,29 @@ def getinfo_tree_aux(node):
     return result
 
 
-def visualize_tree(collected_data):
-    pass
+def getinfo_tree_aux_v2(node, text):
+
+    if node.start is None:
+        result = [[], []]
+    else:
+        result = [text[node.start: int(str(node.end))+1], []]
+
+    for idx, connected_node in enumerate(node.edges):
+        if isinstance(connected_node, Node):
+            result[1].append([chr(idx+MIN_ASCII), getinfo_tree_aux_v2(connected_node, text)])
+
+    if len(result[-1]) == 0:
+        result.pop()
+
+    return result
 
 
 if __name__ == "__main__":
-    root = ukkonen_v2("abcabxabcyab")
+    text = "ababaabbaababa"
+    root = ukkonen_v2(text)
     pprint(getinfo_tree(root))
+
+    # pprint(getinfo_tree_aux_v2(root, text))
 
 # case 1: there is no start/end
 # if current_node.start == current_node.end and i-k+1 > 1:

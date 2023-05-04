@@ -69,7 +69,6 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, root: Node, text: str) -
     k = j  # pointer to the index being compared of a current substring text[j:i+1]
     reached_case3 = False
     while True:
-        # print("comes here")
         previous_node = current_node
         current_node = previous_node.edges[hash_ascii(text[k])]
 
