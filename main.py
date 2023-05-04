@@ -1,4 +1,5 @@
 from optimized_ukkonen import ukkonen_v2, Node, MIN_ASCII, MAX_ASCII
+from optimized_ukkonen_v3 import ukkonen_v3
 
 from pprint import pprint
 
@@ -45,8 +46,8 @@ def getinfo_tree_aux_v2(node, text):
 
 
 if __name__ == "__main__":
-    text = "ababaabbaababa"
-    root = ukkonen_v2(text)
+    text = "abab"
+    root = ukkonen_v3(text)
     pprint(getinfo_tree(root))
 
     # pprint(getinfo_tree_aux_v2(root, text))
