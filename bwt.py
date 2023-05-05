@@ -26,9 +26,9 @@ def bwt_encode_naive(text: str):
 
 
     # sort based on the first character
-    sorted_circular_suffixes = sorted(circular_suffixes, key=lambda x: x[0])
+    sorted_circular_suffixes = sorted(circular_suffixes)
 
-    return [x[-1] for x in sorted_circular_suffixes]
+    return "".join([x[-1] for x in sorted_circular_suffixes])
 
 def get_order(char, i, order_table) -> int:
     char_appearances = order_table[hash_ascii(char)]
@@ -62,7 +62,9 @@ def bwt_decode(text: str) -> str:
         order_table[ascii_index].append(i)
 
     # make the rank table cumulative
+    print(rank_table)
     acum = rank_table[0]
+    rank_table[0] = 0
     for i in range(1, len(rank_table)):
         acum_temp = acum
         acum += rank_table[i]
@@ -77,14 +79,14 @@ def bwt_decode(text: str) -> str:
         decoded_text.append(current_char)
         l_idx = rank_table[hash_ascii(current_char)] + get_order(current_char, l_idx, order_table)
 
-    decoded_text.pop()
+    decoded_text.pop()  # pop "$"
     decoded_text.reverse()
 
     return "".join(decoded_text)
 
 if __name__ == "__main__":
-    text = "isisisisisisisis"
-    encoded = "".join(bwt_encode_naive(text))
+    text = "isisisis"
+    encoded = bwt_encode_naive(text)
     print(encoded)
 
     decoded = bwt_decode(encoded)
