@@ -1,5 +1,22 @@
 from __future__ import annotations
 from typing import Optional, Union
+# from main import getinfo_tree
+from pprint import pprint
+
+
+def getinfo_tree(root):
+    return getinfo_tree_aux(root)
+
+
+def getinfo_tree_aux(node):
+
+    result = [(node.start, str(node.end)), {}]
+
+    for idx, connected_node in enumerate(node.edges):
+        if isinstance(connected_node, Node):
+            result[1][chr(idx+MIN_ASCII)] = getinfo_tree_aux(connected_node)
+
+    return result
 
 # Ukkonen Version 3 - with trick1, 2, 4, and suffix link (without skip count)
 
@@ -10,6 +27,8 @@ def hash_ascii(char: str) -> int:
     assert MIN_ASCII <= ord(char) <= MAX_ASCII, "all characters must be in ascii value of 37-126"
     return ord(char) - MIN_ASCII
 
+def hashed_ascii_to_char(idx):
+    return chr(idx+MIN_ASCII)
 
 class ActivePointer:
     """
@@ -37,16 +56,29 @@ class ActivePointer:
     def set_jstart(self, j_start):
         self.j_start = j_start
 
+    def update_to_next_node(self, edge_idx: int, k: int) -> None:
+        """
+        creates a new node out of a node
+        :param node:
+        :param edge_idx:
+        :param k:
+        :return:
+        """
+        assert edge_idx is not None, "edge_idx shouldn't be none"
+        assert k is not None, "k shouldn't be none"
+
+        if self.node.is_root:
+            self.edge_idx = edge_idx
+
+        self.node = self.node.get_node_using_idx(self.edge_idx)
+        self.j_start = k
+        self.edge_idx = edge_idx
+        self.length = 0
+
 
 class SuffixLinkActivePointer(ActivePointer):
     def __init__(self, node: Node, edge_idx: Optional[int] = None, length: int = 0):
         super().__init__()
-
-        # if showstopper_activenode and node or not showstopper_activenode and not node:
-        #     raise ValueError("only one of showstopper and node should be used to instantiate suffixlink activenode")
-        #
-        # if showstopper_activenode is not None:
-        #     self.convert_from_showstopper_activenode(showstopper_activenode)
 
         if edge_idx is None:
             assert node.is_root, "node should be root when edge_idx is undefined"
@@ -55,16 +87,33 @@ class SuffixLinkActivePointer(ActivePointer):
         self.edge_idx = edge_idx
         self.length = length
 
-    # def convert_from_showstopper_activenode(self, showstopper_activenode: ShowstopperActivePointer):
-    #     self.node = showstopper_activenode.node
-    #
-    #     # note: if the showstopper
-    #     if not showstopper_activenode.node.is_root:
-    #         self.edge_idx = showstopper_activenode.edge_idx
-    #         self.length = showstopper_activenode.length
+        self.is_initial = False
 
-    def update_node(self, node: Node):
-        self.node = node
+    def _reinitialize_from_root(self, root: Node):
+        """
+        this method does not update the edge_idx yet since at the time of creation of pointer,
+        we don't know which character comes after. Therefore, later, edge_idx must be set seaparately.
+        The update_to_next_node method handles this
+        :param root:
+        :return:
+        """
+        assert root.is_root, "node must be root to use this method"
+        self.node = root
+        self.edge_idx = None
+        self.length = 0
+
+    def reinitialize(self):
+        linked_node = self.node.suffix_link
+        if linked_node.is_root:
+            self._reinitialize_from_root(linked_node)
+        else:
+            # suffix link pointed to somewhere not root
+            self.node = linked_node
+
+        self.is_initial = True
+
+    def is_suffixlink_points_to_root(self):
+        return self.node.suffix_link.is_root
 
     def __str__(self):
         if self.edge_idx is None:
@@ -106,6 +155,9 @@ class Node:
 
     def get_node_using_idx(self, edge_idx: int):
         return self.edges[edge_idx]
+
+    def __str__(self):
+        return str((self.start, self.end, self.edges, self.is_root, self.is_leaf))
 
 
 class GlobalEnd:
@@ -225,7 +277,7 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     active_edge_idx: Optional[int] = None
 
     # check active node to determine if we can use suffix link
-    if active_node.node.suffix_link != root:
+    if not active_node.is_suffixlink_points_to_root():
         print("uses suffix link active node")
         # suffix link points to a node that is not node -> does not need to traverse naively
         k = active_node.j_start
@@ -234,19 +286,29 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
 
         # TODO get length too for skip count
 
+    # ensures that the active node starts from where the previous active node linked to
+    active_node.reinitialize()
+
+    # important invariance here (">" means is parent):
+    # active_node >= previous > current
     while True:
-        previous_node: Node = current_node  # the previous node the current substring visited
-        # if we have an effective active node, it stores edge idx already
-        print("normal traversal, current k: ", k)
+        # print("normal traversal, current k: ", k)
+
+        # if edge_idx already defined by the active_node -> use it
         edge_idx = active_edge_idx or hash_ascii(text[k])
         active_edge_idx = None
+
+        if active_node.node.is_root:
+            active_node.set_edge_idx(edge_idx)
+
+        # TODO check this part
+        previous_node: Node = current_node  # the previous node the current substring visited
         current_node = previous_node.edges[edge_idx]
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
             # active length update
-            #TODO might need to set_edge_idx
-            active_node.set_length(previous_node.end - previous_node.start + 1)
+            active_node.set_length(previous_node.end - previous_node.start + 1)  #TODO check this
 
             # previous_branched_node related procedure
             previous_branched_node = current_node
@@ -265,10 +327,10 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
             previous_node.end = global_end
             break
 
-        # active node update
-        active_node.update_node(previous_node)
-        active_node.set_edge_idx(hash_ascii(text[k]))
-        active_node.set_jstart(k)
+        # active node update: it's here because active node should only be updated when there is something to traverse
+        # for the first iteration, active node won't be updated since it hasn't traversed any edges yet (only found that there is an edge)
+        if not active_node.is_initial:
+            active_node.update_to_next_node(edge_idx, k)
 
         # actual comparison
         k_end, reached_case3, previous_branched_node = \
@@ -280,6 +342,7 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
 
         k_prev_start = k + 1
         k = k_end + 1
+        active_node.is_initial = False
 
     # for showstopper: freeze j if case3
     j_next = j if reached_case3 else None
@@ -303,6 +366,8 @@ def ukkonen_v3(text: str) -> Node:
     prev_was_case3 = False
 
     for i in range(len(text)):
+        pprint(getinfo_tree(root))
+        print("=================next iteration========================")
         global_end.increment()
         previous_branched_node = None  # for linking nodes
 
@@ -361,26 +426,26 @@ def ukkonen_v3(text: str) -> Node:
 
 class ShowstopperActivePointer(ActivePointer):
     """
-    Technically, no need for this class. Just for clarity
+    pointer for showstopper
     """
 
     # def __init__(self, suffixlink_activenode):
     #     super().__init__()
     #     self.convert_from_suffixlink_activenode(suffixlink_activenode)
 
-    def __init__(self, root: Node, j_start: int, char: str) -> None:
+    def __init__(self, root: Node, j_start: int, starting_char: str) -> None:
         """
         can be used when there was a case3 during the traversal -> the first time using the showstopper
         :param root: must be the root node
         """
         assert root.is_root, "showstopper should only be instantiated from a root node (because of trick1)"
-        assert char is not None, "at least one case3 must be occured previously; this char should be inputted"
+        assert starting_char is not None, "at least one case3 must be occured previously; this char should be inputted"
 
         super().__init__()
         self.node = root
         self.length = 1
         self.j_start = j_start
-        self.edge_idx = hash_ascii(char)
+        self.edge_idx = hash_ascii(starting_char)
         pass
 
     # def convert_from_suffixlink_activenode(self, suffixlink_activenode: SuffixLinkActivePointer):
@@ -405,16 +470,23 @@ class ShowstopperActivePointer(ActivePointer):
     def do_need_to_goto_next_node(self) -> bool:
         # this node is not properly pointed yet
 
-        pointed_outgoing_edge = self.node.get_node_using_idx(self.edge_idx)
-        start = pointed_outgoing_edge.start
-        end = self.node.end if isinstance(pointed_outgoing_edge.end, int) else pointed_outgoing_edge.end.i  # check for global end
+        assert self.edge_idx is not None and self.length is not None, "showstopper pointer must always have edge_idx and length"
+
+        pointed_outgoing_node = self.node.get_node_using_idx(self.edge_idx)
+        start = pointed_outgoing_node.start
+        end = pointed_outgoing_node.end if isinstance(pointed_outgoing_node.end, int) else pointed_outgoing_node.end.i  # check for global end
+        print(self.node.is_root)
+        print(pointed_outgoing_node)
+        print(start, end, self.length)
         assert self.length <= end - start + 1, "the visited legnth should always be smaller or equal to the actual length of the edge"
         return self.length == end - start + 1
 
-    def point_to_next_node(self) -> None:
-        self.node = self.node.get_node_using_idx(self.edge_idx)
-        self.j_start = self.j_start + self.length
-        self.length = 0
+    # def point_to_next_node(self) -> None:
+    #     self.node = self.node.get_node_using_idx(self.edge_idx)
+    #     self.j_start = self.j_start + self.length
+    #     self.length = 0
+
+        # edge_idx will be defined later on using set_edge_idx method
 
     def get_next_node_for_branch_out(self) -> Node:
         return self.node.get_node_using_idx(self.edge_idx)
@@ -444,14 +516,16 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
     # A: previous turn finished checking all chars in the previous edge
     # -> in this turn, comparison happens at embedded char
     if pointer.do_need_to_goto_next_node():
-        pointer.point_to_next_node()
+        edge_idx = hash_ascii(text[i])
+        pointer.update_to_next_node(edge_idx, i)
         previous_node = pointer.node
         current_node = previous_node.get_node_using_starting_char(text[i])
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
-            # instantiating new suffixlink activenode for next extension
             previous_node.connect_edge(text[i], Node(start=i, end=global_end))
+
+            # instantiating new suffixlink activenode for next extension
             suffixlink_activenode = SuffixLinkActivePointer(previous_node, hash_ascii(text[i]), 1)
 
             # updating previous_branched node (set it to the new_branch)
@@ -462,10 +536,10 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
 
         # case 1: extension if there aren't other edges at a node (is leaf)
         if current_node is None and not previous_node.is_root and previous_node.is_leaf:
-            suffixlink_activenode = SuffixLinkActivePointer(previous_node, hash_ascii(text[i]), pointer.length+1)
-
             previous_node.start = pointer.j_start
             previous_node.end = global_end
+
+            suffixlink_activenode = SuffixLinkActivePointer(previous_node, hash_ascii(text[i]), pointer.length)
 
             # no change in previous_branched node (because there is no branching in case1)
 
@@ -473,8 +547,8 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
             return is_case_three, previous_branched_node, suffixlink_activenode
 
         # case3
-        if current_node is not None:
-            pass
+        # if current_node is not None:
+        #     pass
             # goes to the below block
 
     # B: there is still some characters left on the same edge as previous phase
@@ -489,7 +563,6 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
 
     # case 2: different char -> branch out
     if text[i] != text[existing_char_idx]:
-        print("comes here brob")
         previous_branched_node = branch_out(i, existing_char_idx, pointer.get_next_node_for_branch_out(), pointer,
                                             previous_branched_node, root, global_end, text)
         suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.edge_idx, pointer.length)
