@@ -151,12 +151,11 @@ class Node:
         self.start: Optional[int] = start  # the index of the start character of an edge (inclusive)
         self.end: Union[Optional[int], GlobalEnd] = end  # the index of the last character (inclusive)
 
-        print(start, end)
         assert is_root or (start is not None and end is not None), \
             "start and end can be None only when initializing the root node"
 
         if not is_root:
-            assert start <= end.i if isinstance(end, GlobalEnd) else end,\
+            assert start <= (end.i if isinstance(end, GlobalEnd) else end),\
                 "start should always be smaller than or equal to end"
 
 
@@ -190,7 +189,7 @@ class Node:
         """
         assert start is not None, "start shouldn't be none"
 
-        assert start <= self.end.i if isinstance(self.end, GlobalEnd) else self.end, "start should be smaller than or equal to the end"
+        assert start <= (self.end.i if isinstance(self.end, GlobalEnd) else self.end), "start should be smaller than or equal to the end"
         self.start = start
 
     def set_end(self, end: Union[int, GlobalEnd]):
@@ -200,13 +199,13 @@ class Node:
         :return:
         """
         assert end is not None, "end shouldn't be none"
-        assert end.i if isinstance(end, GlobalEnd) else end >= self.start, "end should be bigger than or equal to start"
+        assert (end.i if isinstance(end, GlobalEnd) else end) >= self.start, "end should be bigger than or equal to start"
 
         self.end = end
 
     def set_start_and_end(self, start: int, end: Union[int, GlobalEnd]):
         assert start is not None and end is not None, "both start and end shouldn't be none"
-        assert start <= end, "start should be smaller than or equal to end"
+        assert start <= (end.i if isinstance(end, GlobalEnd) else end), "start should be smaller than or equal to end"
 
         self.start = start
         self.end = end
@@ -329,7 +328,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
             reached_case3 = True
             return None, reached_case3, previous_branched_node
 
-        k += 1  #TODO fix this
+        k += 1
 
     # requires a further traversal
     return k, reached_case3, previous_branched_node
@@ -367,15 +366,14 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
         current_node = active_node.node.suffix_link
         active_edge_idx = active_node.edge_idx
 
-        print("skipped to current node: ", current_node.start, current_node.end)
-        print("skipped to k value of", k)
+        # print("skipped to current node: ", current_node.start, current_node.end)
+        # print("skipped to k value of", k)
         # TODO get length too for skip count
 
     # ensures that the active node starts from where the previous active node linked to
     active_node.reinitialize()
 
     if active_node.node.is_root:
-        print("passes here")
         active_node.set_edge_idx(hash_ascii(text[k]))
 
     # important invariance here (">" means is parent):
@@ -385,14 +383,13 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
         edge_idx = active_edge_idx or hash_ascii(text[k])
         active_edge_idx = None
 
-        # TODO check this part
         previous_node: Node = current_node  # the previous node the current substring visited
         current_node = previous_node.edges[edge_idx]
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
             # active length update
-            active_node.set_length(previous_node.end - previous_node.start + 1)  # TODO check this
+            active_node.set_length(previous_node.end - previous_node.start + 1)
 
             # previous_branched_node related procedure
             previous_branched_node = previous_node.resolve_suffixlink(previous_branched_node, root)
@@ -416,7 +413,6 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
         # active node update: it's here because active node should only be updated when there is something to traverse
         # for the first iteration, active node won't be updated since it hasn't traversed any edges yet (only found that there is an edge)
         if not active_node.is_initial:
-            print(current_node)
             active_node.update_to_next_node(edge_idx, k)
         else:
             active_node.is_initial = False
@@ -632,7 +628,6 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
             previous_node.connect_edge(text[i], Node(start=i, end=global_end))
 
             # instantiating new suffixlink activenode for next extension
-            # suffixlink_activenode = SuffixLinkActivePointer(previous_node, i, hash_ascii(text[i]), 1)  # TODO check this
             suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.j_start, pointer.edge_idx, pointer.length)
 
             # updating previous_branched node (set it to the new_branch)

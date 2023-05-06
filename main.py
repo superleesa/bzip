@@ -48,8 +48,10 @@ from pprint import pprint
 if __name__ == "__main__":
     # text = "abab": this exmples does not require suffix link active node
     # text = "abcabxabcyab" # creates one suffix link and uses it
-    text = "mississippi$"
+    text = "mississippissipg$"  # this example requires suffix link
+    # text = "missippimippimmisi$"
     root = ukkonen_v3(text)
+
     # pprint(getinfo_tree(root))
 
     # pprint(getinfo_tree_aux_v2(root, text))
