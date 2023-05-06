@@ -190,7 +190,7 @@ class Node:
         """
         assert start is not None, "start shouldn't be none"
 
-        assert start <= self.end, "start should be smaller than or equal to the end"
+        assert start <= self.end.i if isinstance(self.end, GlobalEnd) else self.end, "start should be smaller than or equal to the end"
         self.start = start
 
     def set_end(self, end: Union[int, GlobalEnd]):
@@ -230,6 +230,10 @@ class Node:
 
         return self
 
+    def remove_edge(self, first_char: str):
+        edge_idx = hash_ascii(first_char)
+        self.edges[edge_idx] = None
+
     def __str__(self):
         return str((self.start, self.end, self.edges, self.is_root, self.is_leaf))
 
@@ -245,7 +249,7 @@ class GlobalEnd:
         return str(self.i)
 
 
-def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: Node, active_node: ActivePointer,
+def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: Node, previous_node: Node,
                previous_branched_node: Node,
                root: Node, global_end: GlobalEnd, text: str):
     """
@@ -265,25 +269,36 @@ def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: No
 
     # create two new nodes: the existing and the one inserting
     # put them in node.link of the current node-> you hash first to find where to put
-    existing_branch = Node(start=existing_char_idx, end=global_end)
-    current_node.set_end(existing_char_idx - 1)
+    # removing the curret edge from the previous node
+    previous_node.remove_edge(text[current_node.start])
+
+    # creating an inner node that connects the previous node and two child nodes for the existing and inserting chars
+    inner_node = Node(current_node.start, existing_char_idx-1)
+    inner_node.is_leaf = False
+
+    # treat current node as the branch for existing branch; connect this to the inner node
+    current_node.set_start(existing_char_idx)
     current_node.is_leaf = False
-    inserting_branch = Node(start=inserting_char_idx, end=global_end)
-    current_node.connect_edge(text[existing_char_idx], existing_branch)
-    current_node.connect_edge(text[inserting_char_idx], inserting_branch)
+    inner_node.connect_edge(text[existing_char_idx], current_node)
 
-    # active node related procedure
-    # even if this function is used during showstopper it works
-    # because this function will only be used when there is a branch.
-    # if there is a branch, the showstopper will stop and normal extensions uses suffixlink activenod
+    # create an edge for inserting char and connect it to the inner node
+    inserting_node = Node(start=inserting_char_idx, end=global_end)
+    inner_node.connect_edge(text[inserting_char_idx], inserting_node)
 
-    previous_branched_node = current_node.resolve_suffixlink(previous_branched_node, root)
+    assert text[inserting_char_idx-1] == text[existing_char_idx-1], \
+        "at least one char of the splitting edge should be the same"
+
+    # finally, connect the previous node to the inner node
+    previous_node.connect_edge(text[inner_node.start], inner_node)
+
+    # resolve pending suffix links
+    previous_branched_node = inner_node.resolve_suffixlink(previous_branched_node, root)
 
     return previous_branched_node
 
 
 def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
-                 active_node: ActivePointer, root: Node, previous_branched_node: Optional[Node], text: str) \
+                 previous_node: Node, root: Node, previous_branched_node: Optional[Node], text: str) \
         -> tuple[Optional[int], bool, Optional[Node]]:
     """
     Handles the actual comparison of characters (on an edge) between the ones that exist in the tree and the one inserting right now
@@ -306,7 +321,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
 
         # case 2 - branch out
         if text[existing_idx] != text[k]:
-            return None, reached_case3, branch_out(k, existing_idx, current_node, active_node, previous_branched_node,
+            return None, reached_case3, branch_out(k, existing_idx, current_node, previous_node, previous_branched_node,
                                                    root, global_end, text)
 
         # case 3 - the one already exists longer: stop
@@ -408,7 +423,7 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
 
         # actual comparison
         k_end, reached_case3, previous_branched_node = \
-            compare_edge(k, current_node, i, global_end, active_node, root, previous_branched_node, text)
+            compare_edge(k, current_node, i, global_end, previous_node, root, previous_branched_node, text)
 
         # reached the end already during the actual comparison(case2 or case3) -> does not require a furhter traversal
         if k_end is None:
@@ -599,7 +614,7 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
 
         # case 2: different char -> branch out
         if text[i] != text[existing_char_idx]:
-            previous_branched_node = branch_out(i, existing_char_idx, pointer.get_next_node_for_branch_out(), pointer,
+            previous_branched_node = branch_out(i, existing_char_idx, pointer.get_next_node_for_branch_out(), pointer.node,
                                                 previous_branched_node, root, global_end, text)
             suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.j_start, pointer.edge_idx, pointer.length)
             return is_case_three, previous_branched_node, suffixlink_activenode
