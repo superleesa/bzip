@@ -1,5 +1,5 @@
 from optimized_ukkonen import ukkonen_v2, MIN_ASCII, MAX_ASCII
-from optimized_ukkonen_v3 import ukkonen_v3, Node
+from optimized_ukkonen_v4 import ukkonen_v3, Node
 
 from pprint import pprint
 
