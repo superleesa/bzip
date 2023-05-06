@@ -47,7 +47,8 @@ def getinfo_tree_aux_v2(node, text):
 
 if __name__ == "__main__":
     # text = "abab": this exmples does not require suffix link active node
-    text = "abcabxabcyab" # creates one suffix link but does not use it
+    # text = "abcabxabcyab" # creates one suffix link and uses it
+    text = "abacabad"
     root = ukkonen_v3(text)
     pprint(getinfo_tree(root))
 

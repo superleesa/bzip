@@ -278,6 +278,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
 
     reached_case3: bool = False
     end: int = current_node.end.i if isinstance(current_node.end, GlobalEnd) else current_node.end
+    print("passes hereihtioearhtuihguirg")
 
     for existing_idx in range(current_node.start, end + 1):
 
@@ -291,7 +292,7 @@ def compare_edge(k: int, current_node: Node, i: int, global_end: GlobalEnd,
             reached_case3 = True
             return None, reached_case3, previous_branched_node
 
-        k += 1
+        k += 1  #TODO fix this
 
     # requires a further traversal
     return k, reached_case3, previous_branched_node
@@ -339,9 +340,11 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     # important invariance here (">" means is parent):
     # active_node >= previous > current
     while True:
+        print("oirhgisehrigoheroigh")
         # print("normal traversal, current k: ", k)
 
         # if edge_idx already defined by the active_node -> use it
+        print(k)
         edge_idx = active_edge_idx or hash_ascii(text[k])
         active_edge_idx = None
 
@@ -380,6 +383,8 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
         # for the first iteration, active node won't be updated since it hasn't traversed any edges yet (only found that there is an edge)
         if not active_node.is_initial:
             active_node.update_to_next_node(edge_idx, k)
+        else:
+            active_node.is_initial = False
 
         # actual comparison
         k_end, reached_case3, previous_branched_node = \
@@ -390,8 +395,8 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
             break
 
         k_prev_start = k + 1
-        k = k_end + 1
-        active_node.is_initial = False
+        k = k_end
+        # k = k_end + 1
 
     # for showstopper: freeze j if case3
     j_next = j if reached_case3 else None
