@@ -88,6 +88,6 @@ def elias_decode(bits: bitarray):
         component[0] = 1
         start = end
         end = start + bitarray_to_decimal(component)+1
-        component = bits[start:end]
+        # component = bits[start:end]
 
     return bitarray_to_decimal(component)

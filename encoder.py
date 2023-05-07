@@ -1,29 +1,36 @@
+import bitarray
 
-class Encoder:
-    def __init__(self):
-        pass
+from elias import elias_encode, decimal_to_bitarray
+from bwt import bwt_encode
+from runlength_encoder import runlength_encoder
 
-    def transform(self, text: str) -> int:
-        encoded_text = self._huffman_encode(self._bwt_encode(text))
+def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
+    # pad by 0s if there is remainder
+    num_zeroes = 8 - len(encoded_text) % 8
+    for _ in range(num_zeroes):
+        encoded_text.append(0)
 
-    def _bwt_encode(self):
-        pass
+    return encoded_text
 
-    def _huffman_encode(self):
-        pass
 
-    def _elias_encode(self):
-        pass
+def encoder(text: str):
+    encoded_length = elias_encode(len(str))
+    bwt_text = bwt_encode(text)
+    n_unique_chars, encoded_text, encoded_code_table = runlength_encoder(bwt_text)
 
-class Decoder:
-    pass
+    encoded_length.extend(n_unique_chars)
+    encoded_length.extend(encoded_code_table)
+    encoded_length.extend(encoded_text)
+
+    encoded_text = pad_by_zeroes(encoded_length)
+
+    return encoded_length
+
 
 if __name__ == "__main__":
-    text = "test_text"
-    encoder = Encoder()
-    encoded_text = encoder.transform(text)
+    text = "satoshi satoshi satoshi"
+    output = encoder(text)
 
-    decoder = Decoder()
-    original_text = decoder.transform(encoded_text)
-
-
+    # outputting the content to the file
+    with open("bwtencoded.bin", "w") as file:
+        file.write(output)

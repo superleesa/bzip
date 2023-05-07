@@ -17,7 +17,6 @@ def bwt_encode(text: str) -> str:
 
 def bwt_encode_naive(text: str):
 
-
     # create circular suffixes
     text = text + "$"
     circular_suffixes = [None] * len(text)
