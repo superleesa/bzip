@@ -1,3 +1,5 @@
+import random
+
 MIN_ASCII, MAX_ASCII = 37, 126
 
 
@@ -22,3 +24,8 @@ def hash_char_from_ascii(char_ascii: int):
         return 0
     else:
         return char_ascii - MIN_ASCII + 1
+
+def generate_random_string():
+    length = random.randint(1, 50)
+    ascii_range = (MIN_ASCII, MAX_ASCII)
+    return ''.join(chr(random.randint(*ascii_range)) for _ in range(length))

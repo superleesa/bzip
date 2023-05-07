@@ -15,12 +15,11 @@ def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
 
 def encoder(text: str):
     # TODO consider edge cases such as when there is no text or one char
-    encoded_length = elias_encode(len(text))
+    encoded_length = elias_encode(len(text)+1)  # +1 for dollar symbol
     bwt_text = bwt_encode_naive(text)
     print("bwt_text")
     print(bwt_text)
     n_unique_chars, encoded_text, encoded_code_table = runlength_encoder(bwt_text)
-
 
     encoded_length.extend(n_unique_chars)
     encoded_length.extend(encoded_code_table)

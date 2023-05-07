@@ -44,6 +44,8 @@ def decoder(encoded_text: bitarray) -> str:
     print(remainder)
 
     body, code_table = split_table_and_body(remainder, n_unique_chars)
+    print("code talbe")
+    print(code_table)
 
     print(body)
     decoded_text = runlength_decoder(body, code_table, bwt_length)

@@ -72,8 +72,9 @@ def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_len
     # actual decoding process
     decoded_chars = []
     counter = 0
-
+    print(bwt_length)
     while counter < bwt_length:
+        print("passe here")
 
         # each run starts with how many times a char happens, and then actual code
         # do elias decoding
@@ -100,4 +101,5 @@ def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_len
         counter += n_appearances
         encoded_text = encoded_text[j:]
 
+    print(decoded_chars)
     return "".join(decoded_chars)

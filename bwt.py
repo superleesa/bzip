@@ -1,4 +1,5 @@
 from typing import Optional
+from utilities import generate_random_string
 
 MIN_ASCII, MAX_ASCII = 37, 126
 
@@ -61,7 +62,6 @@ def bwt_decode(text: str) -> str:
         order_table[ascii_index].append(i)
 
     # make the rank table cumulative
-    print(rank_table)
     acum = rank_table[0]
     rank_table[0] = 0
     for i in range(1, len(rank_table)):
@@ -84,9 +84,18 @@ def bwt_decode(text: str) -> str:
     return "".join(decoded_text)
 
 if __name__ == "__main__":
-    text = "isisisis"
-    encoded = bwt_encode_naive(text)
-    print(encoded)
+    successful_cases = []
+    for _ in range(1000):
+        text = generate_random_string()
+        # print(text)
+        if text != bwt_decode(bwt_encode_naive(text)):
+            successful_cases.append(text)
 
-    decoded = bwt_decode(encoded)
-    print(decoded)
+    print(successful_cases)
+
+    # text = "isisisis"
+    # encoded = bwt_encode_naive(text)
+    # print(encoded)
+    #
+    # decoded = bwt_decode(encoded)
+    # print(decoded)
