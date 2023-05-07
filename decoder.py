@@ -1,7 +1,5 @@
 from typing import Optional
-# from bitarray import bitarray
 
-from elias import elias_encode, decimal_to_bitarray
 from bwt import bwt_decode
 from runlength_decoder import runlength_decoder
 from elias import elias_decode
@@ -70,9 +68,7 @@ def decoder(encoded_text: BitArray) -> str:
 if __name__ == "__main__":
     # TODO later get input from the cmd
     filename = "bwtencoded.bin"
-    ba = bitarray()
     with open(filename, "rb") as file:
-        ba.fromfile(file)
-        print(ba)
+        ba = bytes_to_bitarray(file.read())
 
         print(decoder(ba))

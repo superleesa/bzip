@@ -21,8 +21,8 @@ class BitArray:
 
     def __getitem__(self, item):
         """
-        note: we assume that bitshiftting is a constant operation (in reality it depends
-        on cpu; however, the below operations can easily be replaced by floor divisions and mod operations which are constant anyways)
+        note: we assume that bit shifting is a constant time operation (in reality it depends on cpu;however, the below
+         operations can easily be replaced by floor divisions and mod operations which are constant anyways)
         """
         # should support slicing too
         if isinstance(item, int):
