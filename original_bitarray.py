@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from typing import Optional
 
 class BitArray:
     """
@@ -14,9 +14,10 @@ class BitArray:
     note: instead of shifting multiple times do floor division (more efficient)
     """
 
-    def __init__(self, num: int, n_bits: int) -> None:
-        self.num = num
-        self.n_bits = n_bits
+    def __init__(self, num: int = 0, n_bits: int = 0) -> None:
+        assert not (num is None and n_bits is not None or num is not None and n_bits is None), "both of them should be present, or both of them should not be present"
+        self.num: Optional[int] = num
+        self.n_bits: Optional[int] = n_bits
 
     def __getitem__(self, item):
         """
@@ -86,10 +87,25 @@ class BitArray:
         self.num |= bit
         self.n_bits += 1
 
-    def get_as_byte(self):
+    def tobytes(self):
+        # ensure that you only use this method if the first bit starts from 1. else, it will lose all leading 0s.
         num_bytes = (self.n_bits + 7) // 8
         byte_str = self.num.to_bytes(num_bytes, byteorder='big')
         return bytes(byte_str)
 
+    def set_first_bit_to_zero(self):
+        """
+        set the first bit of the bitarray to 0.
+        """
+        mask = 1 << (self.n_bits - 1)
+        self.num &= ~mask
+
+    def set_first_bit_to_one(self):
+        """
+        Set the first bit of the bitarray to 1.
+        """
+        mask = 1 << (self.n_bits - 1)
+        self.num |= mask
+
     def __str__(self):
-        return bin(self.num).zfill(self.n_bits)
+        return bin(self.num)[2:].zfill(self.n_bits)

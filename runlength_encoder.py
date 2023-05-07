@@ -3,10 +3,11 @@ from typing import Optional
 from math import log10, ceil
 
 import heapq as hq
-import bitarray
+# import bitarray
 
 from elias import elias_encode, decimal_to_bitarray
 from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
+from original_bitarray import BitArray
 
 
 class HeapElement:
@@ -22,7 +23,7 @@ class HeapElement:
         return str((self.freq, self.num_chars, self.chars_asciis))
 
 
-def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, bitarray.bitarray]:
+def runlength_encoder(text: str) -> tuple[BitArray, BitArray, BitArray]:
     """
 
     :param text: an encoded text using BWT
@@ -47,7 +48,7 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
     encoded_num_unique_chars = elias_encode(num_unique_chars)
 
     # store the encoded bits at corresponding index
-    code_table: list[Optional[bitarray.bitarray]] = [None] * (MAX_ASCII - MIN_ASCII + 2)
+    code_table: list[Optional[BitArray]] = [None] * (MAX_ASCII - MIN_ASCII + 2)
 
     # heapify
     hq.heapify(heap_elements)
@@ -60,13 +61,13 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
         # "prepend" a bit to corresponding chars
         for char_idx in left.chars_asciis:
             if code_table[char_idx] is None:
-                code_table[char_idx] = bitarray.bitarray()
+                code_table[char_idx] = BitArray()
 
             code_table[char_idx].append(0)
 
         for char_idx in right.chars_asciis:
             if code_table[char_idx] is None:
-                code_table[char_idx] = bitarray.bitarray()
+                code_table[char_idx] = BitArray()
 
             code_table[char_idx].append(1)
 
@@ -91,7 +92,7 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
     # traverse through the text to do run length encoding
     # for each consecutive same chars, combine them all together e.g. aaaa -> 4a
     # elias + huffman
-    encoded_text = bitarray.bitarray()
+    encoded_text = BitArray()
     accum = 1
     prev_char = text[0]
     for i in range(1, len(text)):
@@ -112,10 +113,10 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
     encoded_text.extend(code_table[hash_char(prev_char)])
 
     # encode table
-    encoded_code_table = bitarray.bitarray()
+    encoded_code_table = BitArray()
     for char_idx, code_word in enumerate(code_table):
         if code_word is not None:
-            char_ascii = create_fixed_length_ascii_bitarray(hash_back_tochar(char_idx))  # TODO: the ascii must be in 7 bits
+            char_ascii = create_fixed_length_ascii_bitarray(hash_back_tochar(char_idx))  # the ascii must be in 7 bits
             char_length = elias_encode(len(code_word))
 
             encoded_code_table.extend(char_ascii)
@@ -130,8 +131,7 @@ def create_fixed_length_ascii_bitarray(char: str):
     assert len(char) == 1, "length of the string must be 1"
 
     ascii_value = ord(char)  # get the ASCII value of the character
-    binary_string = bin(ascii_value)[2:].zfill(7)  # convert to binary string and pad with zeros to 7 bits
-    return bitarray.bitarray(binary_string)
+    return BitArray(ascii_value, 7)
 
 
 # ascii_val = ord(char)
@@ -140,7 +140,9 @@ def create_fixed_length_ascii_bitarray(char: str):
 #     ascii_bitarray = bitarray.bitarray("0"*n_paddings)
 #     ascii_bitarray.extend(bitarray.bitarray(ascii_val))
 
-
+if __name__ == "__main__":
+    encoded_num_unique_chars, encoded_text, encoded_code_table = runlength_encoder("aaaabbbcccdddee")
+    print(encoded_text)
 
 
 

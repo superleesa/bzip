@@ -1,10 +1,11 @@
-import bitarray
+# import bitarray
 
 from elias import elias_encode, decimal_to_bitarray
 from bwt import bwt_encode_naive
 from runlength_encoder import runlength_encoder
+from original_bitarray import BitArray
 
-def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
+def pad_by_zeroes(encoded_text: BitArray) -> BitArray:
     # pad by 0s if there is remainder
     num_zeroes = 8 - len(encoded_text) % 8
     for _ in range(num_zeroes):
@@ -13,12 +14,12 @@ def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
     return encoded_text
 
 
-def encoder(text: str):
+def encoder(text: str) -> BitArray:
     # TODO consider edge cases such as when there is no text or one char
     encoded_length = elias_encode(len(text)+1)  # +1 for dollar symbol
     bwt_text = bwt_encode_naive(text)
-    print("bwt_text")
-    print(bwt_text)
+    # print("bwt_text")
+    # print(bwt_text)
     n_unique_chars, encoded_text, encoded_code_table = runlength_encoder(bwt_text)
 
     encoded_length.extend(n_unique_chars)

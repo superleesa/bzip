@@ -32,7 +32,7 @@ from pprint import pprint
 
 if __name__ == "__main__":
     unsuccessful_cases = []
-    for _ in range(1000):
+    for _ in range(100000):
         expected = generate_random_string()
         bitstream = encoder(expected)
         actual = decoder(bitstream)

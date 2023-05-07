@@ -1,8 +1,9 @@
 from typing import Optional
-import bitarray
+# import bitarray
 
 from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
 from elias import elias_decode
+from original_bitarray import BitArray
 
 
 class BSTNode:
@@ -24,7 +25,7 @@ class BSTNode:
             return str(self.bit)
 
 
-def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_length: int) -> str:
+def runlength_decoder(encoded_text: BitArray, code_table: list, bwt_length: int) -> str:
     """
 
     :param encoded_text:
@@ -72,9 +73,9 @@ def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_len
     # actual decoding process
     decoded_chars = []
     counter = 0
-    print(bwt_length)
+
     while counter < bwt_length:
-        print("passe here")
+
 
         # each run starts with how many times a char happens, and then actual code
         # do elias decoding
@@ -87,7 +88,6 @@ def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_len
         j = 0
         while True:
             if current.is_leaf():
-                print(current.char*n_appearances)
                 decoded_chars.append(current.char*n_appearances)
                 break
 
@@ -101,5 +101,5 @@ def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_len
         counter += n_appearances
         encoded_text = encoded_text[j:]
 
-    print(decoded_chars)
+
     return "".join(decoded_chars)
