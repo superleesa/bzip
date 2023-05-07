@@ -162,7 +162,7 @@ class Node:
         # outward edges from this node
         # each index represents the starting character of an outward edge
         # this is just a reference table - do not use this for storing character
-        self.edges: list[Optional[Node]] = [None] * (MAX_ASCII - MIN_ASCII + 1)
+        self.edges: list[Optional[Node]] = [None] * (MAX_ASCII - MIN_ASCII + 2)  # +2 to accommodate for "$"
 
         self.is_root = is_root
 
@@ -650,7 +650,7 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
             # update active length
-            pointer.set_length(previous_node.get_end() - previous_node.start + 1)
+            pointer.set_length(previous_node.get_end() - previous_node.start + 1)  # TODO i don't think we need this?
 
             previous_node.connect_edge(text[i], Node(start=i, end=global_end))
 
