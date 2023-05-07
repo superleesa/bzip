@@ -14,3 +14,11 @@ def hash_back_tochar(idx) -> str:
         return "$"
     else:
         return chr(idx + MIN_ASCII - 1)
+
+def hash_char_from_ascii(char_ascii: int):
+    assert MIN_ASCII <= char_ascii <= MAX_ASCII or char_ascii == ord("$"), "all characters must be in ascii value of 37-126, or '$'"
+
+    if char_ascii == ord("$"):
+        return 0
+    else:
+        return char_ascii - MIN_ASCII + 1

@@ -1,7 +1,7 @@
 import bitarray
 
 from elias import elias_encode, decimal_to_bitarray
-from bwt import bwt_encode
+from bwt import bwt_encode_naive
 from runlength_encoder import runlength_encoder
 
 def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
@@ -14,9 +14,13 @@ def pad_by_zeroes(encoded_text: bitarray.bitarray) -> bitarray.bitarray:
 
 
 def encoder(text: str):
-    encoded_length = elias_encode(len(str))
-    bwt_text = bwt_encode(text)
+    # TODO consider edge cases such as when there is no text or one char
+    encoded_length = elias_encode(len(text))
+    bwt_text = bwt_encode_naive(text)
+    print("bwt_text")
+    print(bwt_text)
     n_unique_chars, encoded_text, encoded_code_table = runlength_encoder(bwt_text)
+
 
     encoded_length.extend(n_unique_chars)
     encoded_length.extend(encoded_code_table)
@@ -28,9 +32,10 @@ def encoder(text: str):
 
 
 if __name__ == "__main__":
-    text = "satoshi satoshi satoshi"
+    text = "abcd"
     output = encoder(text)
 
+    print(output)
     # outputting the content to the file
-    with open("bwtencoded.bin", "w") as file:
-        file.write(output)
+    with open("bwtencoded.bin", "wb") as file:
+        file.write(output.tobytes())

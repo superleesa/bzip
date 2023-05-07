@@ -2,22 +2,6 @@ from bitarray import bitarray
 from math import ceil, log2
 from bitarray.util import ba2int
 
-class OriginalBitarray:
-    def __init__(self):
-        pass
-
-    def __setitem__(self, key, value):
-        pass
-
-    def reverse(self):
-        # traverse through the int backward -> use AND and SHIFT operators
-        # use iterator to do this
-        pass
-
-    def append(self):
-        # shift left -> add 1 or 0
-        pass
-
 
 class ByteIterator:
     def __init__(self, bits: int):
@@ -36,7 +20,9 @@ class ByteIterator:
         return (self.bits >> self.i) & 1
 
 
-def elias_encode(num: int):
+def elias_encode(num: int) -> bitarray:
+    assert num > 0, "elias encode does not support 0 and negative numbers"
+
     components = []
 
     # convert num to binary
@@ -80,8 +66,8 @@ def elias_decode(bits: bitarray):
 
     while True:
         component = bits[start:end]
-        print("================")
-        print(component)
+        # print("================")
+        # print(component)
         if component[0] == 1:
             break
 
@@ -90,4 +76,16 @@ def elias_decode(bits: bitarray):
         end = start + bitarray_to_decimal(component)+1
         # component = bits[start:end]
 
-    return bitarray_to_decimal(component)
+    remainder = bits[end:]  # note: this process is constant (see the implementation)
+
+    return bitarray_to_decimal(component), remainder
+
+
+# if __name__ == "__main__":
+#     # print(elias_decode(elias_encode(100)))
+#
+#     not_successful = []
+#     for test_num in range(1, 1000000):
+#         if test_num != elias_decode(elias_encode(test_num)):
+#             not_successful.append(test_num)
+#     print(not_successful)

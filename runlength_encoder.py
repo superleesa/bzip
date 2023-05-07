@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+from math import log10, ceil
 
 import heapq as hq
 import bitarray
@@ -87,10 +88,11 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
         if ascii_bits is not None:
             ascii_bits.reverse()
 
-    # traverse through the text to encode
+    # traverse through the text to do run length encoding
+    # for each consecutive same chars, combine them all together e.g. aaaa -> 4a
     # elias + huffman
     encoded_text = bitarray.bitarray()
-    accum = 0
+    accum = 1
     prev_char = text[0]
     for i in range(1, len(text)):
         char = text[i]
@@ -99,16 +101,21 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
         else:
             run_length = elias_encode(accum)
             encoded_text.extend(run_length)
-            encoded_text.extend(code_table[hash_char(char)])
+            encoded_text.extend(code_table[hash_char(prev_char)])
 
-            accum = 0
+            accum = 1
             prev_char = char
 
-    # code table
+    # for the remaining char (can be 1 or many)
+    run_length = elias_encode(accum)
+    encoded_text.extend(run_length)
+    encoded_text.extend(code_table[hash_char(prev_char)])
+
+    # encode table
     encoded_code_table = bitarray.bitarray()
     for char_idx, code_word in enumerate(code_table):
         if code_word is not None:
-            char_ascii = decimal_to_bitarray(ord(hash_back_tochar(char_idx)))
+            char_ascii = create_fixed_length_ascii_bitarray(hash_back_tochar(char_idx))  # TODO: the ascii must be in 7 bits
             char_length = elias_encode(len(code_word))
 
             encoded_code_table.extend(char_ascii)
@@ -118,6 +125,20 @@ def runlength_encoder(text: str) -> tuple[bitarray.bitarray, bitarray.bitarray, 
     return encoded_num_unique_chars, encoded_text, encoded_code_table
 
 
+def create_fixed_length_ascii_bitarray(char: str):
+    # TODO change this later on
+    assert len(char) == 1, "length of the string must be 1"
+
+    ascii_value = ord(char)  # get the ASCII value of the character
+    binary_string = bin(ascii_value)[2:].zfill(7)  # convert to binary string and pad with zeros to 7 bits
+    return bitarray.bitarray(binary_string)
+
+
+# ascii_val = ord(char)
+#     ascii_val_legnth = ceil(log10(ascii_val))
+#     n_paddings = 7 - ascii_val_legnth
+#     ascii_bitarray = bitarray.bitarray("0"*n_paddings)
+#     ascii_bitarray.extend(bitarray.bitarray(ascii_val))
 
 
 

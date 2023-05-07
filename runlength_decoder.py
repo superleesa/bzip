@@ -1,5 +1,8 @@
-from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
+from typing import Optional
+import bitarray
 
+from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
+from elias import elias_decode
 
 
 class BSTNode:
@@ -21,7 +24,7 @@ class BSTNode:
             return str(self.bit)
 
 
-def huffman_decode(encoded_text: bitarray.bitarray, code_table: list) -> str:
+def runlength_decoder(encoded_text: bitarray.bitarray, code_table: list, bwt_length: int) -> str:
     """
 
     :param encoded_text:
@@ -68,15 +71,25 @@ def huffman_decode(encoded_text: bitarray.bitarray, code_table: list) -> str:
 
     # actual decoding process
     decoded_chars = []
-    j = 0
-    while j < len(encoded_text):
+    counter = 0
+
+    while counter < bwt_length:
+
+        # each run starts with how many times a char happens, and then actual code
+        # do elias decoding
+        n_appearances, encoded_text = elias_decode(encoded_text)
+
+
         # traverse the BST while it reaches the leaf
         # note: don't increment j after each outer loop because #edges = #nodes-1
         current = root
+        j = 0
         while True:
             if current.is_leaf():
-                decoded_chars.append(current.char)
+                print(current.char*n_appearances)
+                decoded_chars.append(current.char*n_appearances)
                 break
+
             if encoded_text[j] == 0:
                 current = current.left
             else:
@@ -84,6 +97,7 @@ def huffman_decode(encoded_text: bitarray.bitarray, code_table: list) -> str:
 
             j += 1
 
-
+        counter += n_appearances
+        encoded_text = encoded_text[j:]
 
     return "".join(decoded_chars)
