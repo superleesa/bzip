@@ -1,49 +1,19 @@
 from __future__ import annotations
+
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of Ukkonen Suffix Link"
+
 from typing import Optional, Union
-# from main import getinfo_tree
-from pprint import pprint
 from abc import ABC
+from utilities import hash_char
 
-
-def getinfo_tree(root):
-    return getinfo_tree_aux(root)
-
-
-def getinfo_tree_aux(node):
-    result = [(node.start, str(node.end)), {}]
-
-    for idx, connected_node in enumerate(node.edges):
-        if isinstance(connected_node, Node):
-            result[1][hashed_ascii_to_char(idx)] = getinfo_tree_aux(connected_node)
-
-    return result
-
-
-# Ukkonen Version 4 - with all tricks and suffix link
 
 MIN_ASCII, MAX_ASCII = 37, 126
 
-
-def hash_ascii(char: str) -> int:
-    assert MIN_ASCII <= ord(char) <= MAX_ASCII or char == "$", "all characters must be in ascii value of 37-126, or '$'"
-
-    if char == "$":
-        return 0
-    else:
-        return ord(char) - MIN_ASCII + 1
-
-
-def hashed_ascii_to_char(idx):
-    if idx == 0:
-        return "$"
-    else:
-        return chr(idx + MIN_ASCII - 1)
-
-
 class ActivePointer(ABC):
     """
-    if self.node = root, ignore edge and length and start the comparison from j
-
+    A pointer that points to a particular node in the tree.
     Can be used in two ways:
     1) to move from one extension to another quickly using suffix link; active node points to the last internal node visited in a traversal
     2) for showstopper; active node points to the last character visited in the previous iteration
@@ -54,11 +24,8 @@ class ActivePointer(ABC):
         self.edge_idx: Optional[int] = None
         self.length: Optional[int] = None
 
-        # starting index j of an element compared to the edge
+        # actual index of the starting char on edge for the one being inserted (not existing on)
         self.j_start: Optional[int] = None
-
-        # # number of chracters traversed so far along the reminder
-        # self.traversed_length: int = 0
 
     def set_length(self, length: int) -> None:
         self.length = length  # includes the start and end of an edge
@@ -75,18 +42,13 @@ class ActivePointer(ABC):
         Input does not require next node itself because it can be obtained from the previous node.edge_idx
         Used by both the suffix link pointer and showstopper pointer.
 
-        :param edge_idx: the hashed value for he first character of the edge
+        :param edge_idx: the hashed value for the first character of the new active edge
         :param k: the index of the first character for the selected edge. this should be the index of the inserting one
         (not existing one)
-        :return:
         """
         assert edge_idx is not None, "edge_idx shouldn't be none"
         assert k is not None, "k shouldn't be none"
 
-        # if self.node.is_root:
-        #     self.edge_idx = edge_idx
-
-        print(self.node.get_node_using_idx(self.edge_idx))
 
         assert self.node.get_node_using_idx(self.edge_idx).get_node_using_idx(edge_idx) is not None, \
             "ensure that there is an existing edge out before updating active node to it"
@@ -97,11 +59,14 @@ class ActivePointer(ABC):
 
 
 class SuffixLinkActivePointer(ActivePointer):
+    """
+    Used to point to the latest internal node during each extension procedure
+    """
     def __init__(self, node: Node, j_start: int, edge_idx: Optional[int] = None, length: int = 0) -> None:
         super().__init__()
 
         if edge_idx is None:
-            assert node.is_root, "node should be root when edge_idx is undefined"
+            assert node.is_root, "node should be the root when edge_idx is undefined"
 
         self.node = node
         self.edge_idx = edge_idx
@@ -110,13 +75,15 @@ class SuffixLinkActivePointer(ActivePointer):
 
         self.is_initial = True
 
-    def _reinitialize_from_root(self, root: Node) -> None:
+    def _reinitialize_root(self, root: Node) -> None:
         """
-        this method does not update the edge_idx yet since at the time of creation of pointer,
-        we don't know which character comes after. Therefore, later, edge_idx must be set seaparately.
+        Handles the reinitialization of a root node (see reinitialize method below).
+
+        Note:
+        This method does not update the edge_idx yet since at the time of creation of pointer,
+        we don't know which character comes after. Therefore, later, edge_idx must be set separately.
         The update_to_next_node method handles this
-        :param root:
-        :return:
+        :param root: the root node
         """
         assert root.is_root, "node must be root to use this method"
         self.node = root
@@ -124,9 +91,14 @@ class SuffixLinkActivePointer(ActivePointer):
         self.length = 0
 
     def reinitialize(self) -> None:
+        """
+        Handles the reinitialization of active node, at the beggining of each extension.
+        Note: at the beggining of each extension active node must be reinitialized, or else the active node from
+        previous extension will be still there.
+        """
         linked_node = self.node.suffix_link
         if linked_node.is_root:
-            self._reinitialize_from_root(linked_node)
+            self._reinitialize_root(linked_node)
         else:
             # suffix link pointed to somewhere not root
             self.node = linked_node
@@ -148,6 +120,7 @@ class SuffixLinkActivePointer(ActivePointer):
 
 class Node:
     """
+    Represent a node in suffix tree. It stores start and end indices to represent characters on edge.
     The first character of each edge is embedded in previous node to enable accessing into edges in a constant time.
     """
 
@@ -164,27 +137,31 @@ class Node:
         # this is just a reference table - do not use this for storing character
         self.edges: list[Optional[Node]] = [None] * (MAX_ASCII - MIN_ASCII + 2)  # +2 to accommodate for "$"
 
-        self.is_root = is_root
+        self.is_root: bool = is_root
 
         # used to distinguish case1 vs. case2-alt
-        self.is_leaf = True  # set to false when brunching out
+        self.is_leaf: bool = True  # set to false when brunching out
 
         # for suffix link
         self.suffix_link: Optional[Node] = None
 
+        # for suffix array
+        self.suffix_starting_idx: Optional[int] = None
+
     def connect_edge(self, first_char: str, node: Node) -> None:
-        self.edges[hash_ascii(first_char)] = node
+        self.edges[hash_char(first_char)] = node
 
     def get_node_using_starting_char(self, char: str) -> Optional[Node]:
-        return self.edges[hash_ascii(char)]
+        return self.edges[hash_char(char)]
 
     def get_node_using_idx(self, edge_idx: int) -> Optional[Node]:
         return self.edges[edge_idx]
 
     def set_start(self, start: int) -> None:
         """
-        ensure that only start is updated when using this function (not end). the assertion does not hold if not so
-        :param start:
+        Used to set the start character of this edge, in terms of index.
+        note: ensure that only start is updated when using this function (not end). the assertion does not hold if not so
+        :param start: the start index
         :return:
         """
         assert start is not None, "start shouldn't be none"
@@ -194,9 +171,9 @@ class Node:
 
     def set_end(self, end: Union[int, GlobalEnd]) -> None:
         """
+        Used to set the end character of this edge, in terms of index.
         ensure that only end is updated when using this function (not start). the assertion does not hold if not so
-        :param end:
-        :return:
+        :param end: the end index of this edge
         """
         assert end is not None, "end shouldn't be none"
         assert self.get_end() >= self.start, "end should be bigger than or equal to start"
@@ -204,6 +181,12 @@ class Node:
         self.end = end
 
     def set_start_and_end(self, start: int, end: Union[int, GlobalEnd]) -> None:
+        """
+        Used to set the start and end character of this edge at the same time.
+        :param start: the start index of this edge
+        :param end: the end index of this edge
+        :return:
+        """
         assert start is not None and end is not None, "both start and end shouldn't be none"
         assert start <= self.get_end(), "start should be smaller than or equal to end"
 
@@ -212,7 +195,7 @@ class Node:
 
     def resolve_suffixlink(self, previous_branched_node: Optional[Node], root: Node) -> Node:
         """
-        resolve pending suffix link AND connect this node to the root node temporality.
+        Resolve pending suffix link AND connect this node to the root node temporally.
         Returns this node as the new previous branched node.
 
         :param previous_branched_node: a node branched in the previous extension (of the same phase)
@@ -230,14 +213,18 @@ class Node:
         return self
 
     def remove_edge(self, first_char: str) -> None:
-        edge_idx = hash_ascii(first_char)
+        edge_idx = hash_char(first_char)
         self.edges[edge_idx] = None
 
     def get_end(self) -> int:
         return self.end.i if isinstance(self.end, GlobalEnd) else self.end
 
     def __str__(self) -> str:
-        return str((self.start, self.end, self.edges, self.is_root, self.is_leaf))
+        edges = []
+        for edge in self.edges:
+            if edge is not None:
+                edges.append(str(edge))
+        return str((self.start, int(str(self.end)), edges, self.is_root, self.is_leaf))
 
 
 class GlobalEnd:
@@ -251,27 +238,28 @@ class GlobalEnd:
         return str(self.i)
 
 
-def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: Node, previous_node: Node,
+def branch_out(inserting_char_idx: int, existing_char_idx: int, suffix_starting_idx: int, current_node: Node, previous_node: Node,
                previous_branched_node: Node, active_node: ActivePointer,
-               root: Node, global_end: GlobalEnd, text: str) -> Optional[Node]:
+               root: Node, global_end: GlobalEnd, text: str) -> Node:
     """
-    Makes extension to the current node and resolves pending suffix link from the previous extension
-    Modifies the attributes of current node and active node
+    Branch out the current edge into two edges and resolves pending suffix link from the previous extension
+    Modifies the attributes of current node and active node.
 
-    :param inserting_char_idx:
-    :param existing_char_idx:
-    :param current_node:
-    :param active_node:
-    :param root:
-    :param previous_branched_node:
-    :param global_end:
-    :param text:
-    :return:
+    :time complexity: O(1)
+    :aux space complexity: O(1)
+    :param inserting_char_idx: the index of the character being inserted
+    :param existing_char_idx: the index of the character already present in the edge
+    :param suffix_starting_idx: the start index of this particular suffix we are inserting now (used to create suffix array)
+    :param current_node: the node (edge) to make a branch from
+    :param previous_node: the parent node of current_node
+    :param previous_branched_node: the node branched in the previous extension. used to resolve the suffix link
+
+    :return: previous_branched_node, which must be updated after this function
     """
 
     # create two new nodes: the existing and the one inserting
     # put them in node.link of the current node-> you hash first to find where to put
-    # removing the curret edge from the previous node
+    # removing the current edge from the previous node
     previous_node.remove_edge(text[current_node.start])
 
     # creating an inner node that connects the previous node and two child nodes for the existing and inserting chars
@@ -280,15 +268,16 @@ def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: No
 
     # treat current node as the branch for existing branch; connect this to the inner node
     current_node.set_start(existing_char_idx)
-    current_node.is_leaf = False
+    # note: the is_leaf stutus for current node should be the same
     internal_node.connect_edge(text[existing_char_idx], current_node)
 
     # create an edge for inserting char and connect it to the inner node
     inserting_node = Node(start=inserting_char_idx, end=global_end)
+    inserting_node.suffix_starting_idx = suffix_starting_idx
     internal_node.connect_edge(text[inserting_char_idx], inserting_node)
 
     assert text[inserting_char_idx - 1] == text[existing_char_idx - 1], \
-        "at least one char of the splitting edge should be the same"
+        "at least one char of the splitting edge should be the same; if not it should be caught in case 2-alt"
 
     # finally, connect the previous node to the inner node
     previous_node.connect_edge(text[internal_node.start], internal_node)
@@ -302,41 +291,69 @@ def branch_out(inserting_char_idx: int, existing_char_idx: int, current_node: No
     return previous_branched_node
 
 
-def compare_character(k: int, i: int, existing_idx: int, current_node: Node, previous_node: Node,
+def compare_character(k: int, i: int, existing_idx: int, suffix_starting_idx: int, current_node: Node, previous_node: Node,
                       previous_branched_node: Optional[Node],
                       active_node: SuffixLinkActivePointer,
                       global_end: GlobalEnd, root: Node, text: str) -> tuple[Optional[int], bool, Optional[Node]]:
+    """
+    Handles the actual comparison of a character on each edge. It invokes branch_out method when reached case2
+
+    :time complexity: O(1)
+    :aux space complexity: O(1)
+    :param k: the current index in the text being processed
+    :param i: the end index of the substring being processed
+    :param existing_idx: the index of an already existing character
+    :param suffix_starting_idx: the starting index of the current suffix we are inserting
+    :param current_node: a Node object representing the current node in the suffix tree
+    :param previous_node: a Node object representing the previous node in the suffix tree
+    :param previous_branched_node: an optional Node object representing the previous branched node in the suffix tree
+
+
+    :return k: an integer representing the index of the current character this function finished comparing. Set to None if no comparison should be made after this one.
+    :return reached_case3: a boolean value indicating if we reached case3 or not
+    :return previous_branched_node: an optional Node object representing the previous branched node.
+    :effect: modifies the tree
+    """
+    reached_case3 = False
 
     # case 2 - branch out
     if text[existing_idx] != text[k]:
-        return None, False, branch_out(k, existing_idx, current_node, previous_node, previous_branched_node,
-                                       active_node, root, global_end, text)
+        return None, reached_case3, branch_out(k, existing_idx, suffix_starting_idx, current_node, previous_node,
+                                               previous_branched_node, active_node, root, global_end, text)
 
     # case 3 - the one already exists longer: stop
     if k == i:
+        active_node.set_length(existing_idx - current_node.start + 1)
         reached_case3 = True
-        active_node.set_length(current_node.get_end() - current_node.start + 1)
-        return None, True, previous_branched_node
+        return None, reached_case3, previous_branched_node
 
     # should go to next iteration (if allowed)
-    return k, False, previous_branched_node
+    return k, reached_case3, previous_branched_node
 
 
-def compare_edge(k: int, i: int, current_node: Node, previous_node: Node, previous_branched_node: Optional[Node],
-                 active_node: SuffixLinkActivePointer, global_end: GlobalEnd, root: Node, text: str) \
-        -> tuple[Optional[int], bool, Optional[Node]]:
+def compare_edge(k: int, i: int, suffix_starting_idx: int, current_node: Node, previous_node: Node,
+                 previous_branched_node: Optional[Node], active_node: SuffixLinkActivePointer,
+                 global_end: GlobalEnd, root: Node, text: str) -> tuple[Optional[int], bool, Optional[Node]]:
     """
-    Handles the actual comparison of characters (on an edge) between the ones that exist in the tree and the one inserting right now
-    Note: changes attributes of active_node inside
-    :param active_node:
-    :param previous_branched_node:
-    :param root:
-    :param k:
-    :param current_node:
-    :param i:
-    :param global_end:
-    :param text:
-    :return:
+    Handles the comparison of the existing edge and the characters being inserted.
+
+    :time complexity: O(len(edge))
+    :aux space complexity: O(1)
+
+    :time complexity: O(1)
+    :aux space complexity: O(1)
+    :param k: the current index in the text being processed
+    :param i: the end index of the substring being processed
+    :param suffix_starting_idx: the starting index of the current suffix we are inserting
+    :param current_node: a Node object representing the current node in the suffix tree
+    :param previous_node: a Node object representing the previous node in the suffix tree
+    :param previous_branched_node: an optional Node object representing the previous branched node in the suffix tree
+
+
+    :return k: an integer representing the index of the current character this function finished comparing. Set to None if no comparison should be made after this one.
+    :return reached_case3: a boolean value indicating if we reached case3 or not
+    :return previous_branched_node: an optional Node object representing the previous branched node.
+    :effect: modifies the tree
     """
 
     reached_case3: bool = False
@@ -345,6 +362,7 @@ def compare_edge(k: int, i: int, current_node: Node, previous_node: Node, previo
     for existing_idx in range(current_node.start, end + 1):
 
         k, reached_case3, previous_branched_node = compare_character(k, i, existing_idx,
+                                                                     suffix_starting_idx,
                                                                      current_node, previous_node,
                                                                      previous_branched_node, active_node,
                                                                      global_end, root, text)
@@ -359,23 +377,29 @@ def compare_edge(k: int, i: int, current_node: Node, previous_node: Node, previo
 
 
 def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkActivePointer, root: Node,
-                 previous_branched_node: Optional[Node], text: str) -> tuple[Optional[int], Node]:
+                 previous_branched_node: Optional[Node], text: str) -> tuple[Optional[int], Node, ActivePointer]:
     """
-    Iterates through the nodes to find where the current substring should go
-    changes attributes of active node inside
-    :param active_node:
-    :param previous_branched_node:
-    :param j:
-    :param i:
-    :param global_end:
-    :param root:
-    :param previous_branch_node:
-    :param text:
-    :return:
-    :effect: changes the tree (adds a node, modifies node.start, node.end)
+    Handles the extension. Iterates through the nodes to find where the current substring should go.
+    If possible it uses suffix link and skip count to skip comparisons.
+
+    :time complexity: O(1)
+    :aux space complexity: O(1)
+
+    :param j: the start index of substring we are inserting into the suffix tree
+    :param i: the end index of substring
+    :param global_end: the global end
+    :param previous_branched_node: a Node object representing the previous node in the suffix tree
+    :param active_node: a SuffixLinkActivePointer object representing the active node in the suffix tree
+    :param global_end: a GlobalEnd object representing the global end of the suffix tree
+    :param root: a Node object representing the root node of the suffix tree
+    :param text: the text being processed
+
+    :return k: an integer representing the index of the current character this function finished comparing. Set to None if no comparison should be made after this one.
+    :return reached_case3: a boolean value indicating if we reached case3 or not
+    :return active_pointer: an active pointer to the latest node; will be converted into showstopper pointer if reached case3
+    :effect: modifies the tree
     """
 
-    # TODO need to check j_start for the active node
 
     current_node: Optional[Node] = root
     k: int = j  # pointer to the index being compared of a current substring text[j:i+1]
@@ -385,15 +409,11 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     # check active node to see if we can use suffix link
     can_use_suffixlink = not active_node.does_suffixlink_points_to_root()
     if can_use_suffixlink:
-        print("uses suffix link active node")
         # suffix link points to a node that is not node -> does not need to traverse naively
         k = active_node.j_start
         current_node = active_node.node.suffix_link
         active_edge_idx = active_node.edge_idx
 
-        # print("skipped to current node: ", current_node.start, current_node.end)
-        # print("skipped to k value of", k)
-        # TODO get length too for skip count
         length_required_to_traverse = active_node.length
         assert length_required_to_traverse is not None and length_required_to_traverse != 0, "length should be " \
                                                                                              "neither None nor 0 "
@@ -403,13 +423,14 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     active_node.reinitialize()
 
     if active_node.node.is_root:
-        active_node.set_edge_idx(hash_ascii(text[k]))
+        active_node.set_edge_idx(hash_char(text[k]))
+        active_node.j_start = k
 
     # important invariance here (">" means is parent):
     # active_node >= previous > current
     while True:
         # if edge_idx already defined by the active_node -> use it
-        edge_idx = active_edge_idx or hash_ascii(text[k])
+        edge_idx = active_edge_idx or hash_char(text[k])
         active_edge_idx = None
 
         previous_node: Node = current_node  # the previous node the current substring visited
@@ -417,14 +438,20 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
-            # active length update
-            active_node.set_length(previous_node.get_end() - previous_node.start + 1)
+            if previous_node.is_root:
+                assert j == k, "k shouldn't be updated yet at all"
+                active_node.set_length(i-j+1)
+            else:
+                # active length update
+                active_node.set_length(previous_node.get_end() - previous_node.start + 1)
 
             # previous_branched_node related procedure
             previous_branched_node = previous_node.resolve_suffixlink(previous_branched_node, root)
 
             # create new node and connect it
-            previous_node.connect_edge(text[k], Node(start=k, end=global_end))
+            new_node = Node(start=k, end=global_end)
+            new_node.suffix_starting_idx = j
+            previous_node.connect_edge(text[k], new_node)
             previous_node.is_leaf = False  # only useful when the input was root and i == 0
             break
 
@@ -458,13 +485,13 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
 
                 # case 2
                 _, reached_case3, previous_branched_node = \
-                    compare_character(inserting_char_idx, i, existing_char_idx, current_node,
+                    compare_character(inserting_char_idx, i, existing_char_idx, j, current_node,
                                       previous_node, previous_branched_node, active_node, global_end, root, text)
                 break
 
         # --> did not use suffix link -> requires actual comparison
         k_end, reached_case3, previous_branched_node = \
-            compare_edge(k, i, current_node, previous_node, previous_branched_node, active_node, global_end, root, text)
+            compare_edge(k, i, j, current_node, previous_node, previous_branched_node, active_node, global_end, root, text)
 
         # reached the end already during the actual comparison(case2 or case3) -> does not require a furhter traversal
         if k_end is None:
@@ -475,25 +502,30 @@ def do_extension(j: int, i: int, global_end: GlobalEnd, active_node: SuffixLinkA
     # for showstopper: freeze j if case3
     j_next = j if reached_case3 else None
 
-    return j_next, previous_branched_node
+    return j_next, previous_branched_node, active_node
 
 
-def ukkonen_v3(text: str) -> Node:
-    # create implicit tree
+def ukkonen(text: str) -> Node:
+    """
+    The implementation of Ukkonen suffix tree construction algorithm.
 
+    :time complexity: O(n) where n = len(text) for the phases
+    :space complexity: O(n) for storing nodes (represented using [start, end] format)
+
+    :param text: a string representing the text being processed
+    :return: the root node
+    """
+    # initialize an implicit tree
     root = Node(0, -1, is_root=True)
     root.suffix_link = root  # root's suffix link points back to itself
 
-    showstopper_activenode = None
-    prev_was_showstopper = False
 
-    global_end = GlobalEnd(-1)
+    global_end = GlobalEnd(-1)  # the pointer to current iteration i
     j_next: Optional[int] = None  # used for showstopper; represent the j to start the extension from
-    prev_was_case3 = False
+    prev_was_case3 = False  # represents if the previous extension ended with case3
+    prev_was_showstopper = False  # represents if the previous iteration used showstopper
 
     for i in range(len(text)):
-        pprint(getinfo_tree(root))
-        print("=================next iteration========================")
         global_end.increment()
         previous_branched_node = None  # for linking nodes
 
@@ -506,23 +538,26 @@ def ukkonen_v3(text: str) -> Node:
         # preparation for showstopper
         if prev_was_case3 and not prev_was_showstopper:
             # found case3 during traversal -> requires initialization of showstopper pointer
-            showstopper_pointer = ShowstopperActivePointer(root, j_next, text[j_next])
+            # converts the suffixlink pointer to showstopper pointer
+            node = suffixlink_activenode_for_showstopper.node
+            j_start = suffixlink_activenode_for_showstopper.j_start
+            edge_idx = suffixlink_activenode_for_showstopper.edge_idx
+            length = suffixlink_activenode_for_showstopper.length
+            showstopper_pointer = ShowstopperActivePointer(node, j_start, edge_idx, length)
+            suffixlink_activenode_for_showstopper = None
 
         # preparation for normal traversal
         if not prev_was_case3:
             # just start with the root
             suffixlink_activenode = SuffixLinkActivePointer(root, 0)
 
-        start = j_next if prev_was_case3 else i
+        start = j_next if prev_was_case3 else i  # for showstopper
 
         for j in range(start, i + 1):
-            print("inner loop: ", j, i)
-
             # check the showstopper here
             # showstopper
             if prev_was_case3:
-                print("goes to: showstopper")
-                prev_was_case3, previous_branched_node, suffixlink_activenode = showstopper_extension(i,
+                prev_was_case3, previous_branched_node, suffixlink_activenode = showstopper_extension(i, j,
                                                                                                       showstopper_pointer,
                                                                                                       previous_branched_node,
                                                                                                       global_end, root,
@@ -532,13 +567,11 @@ def ukkonen_v3(text: str) -> Node:
 
             # normal traversal
             else:
-                print("goes to normal traversal", j, i)
-
                 prev_was_showstopper = False
 
                 # actual extension
                 # note: no need to change j_next until we pass through all the consecutive case3s
-                j_next, previous_branched_node = do_extension(j, i, global_end, suffixlink_activenode, root,
+                j_next, previous_branched_node, suffixlink_activenode_for_showstopper = do_extension(j, i, global_end, suffixlink_activenode, root,
                                                               previous_branched_node, text)
                 prev_was_case3 = j_next is not None
 
@@ -546,33 +579,38 @@ def ukkonen_v3(text: str) -> Node:
             if prev_was_case3:
                 break
 
-    pprint(getinfo_tree(root))
     return root
 
 
 class ShowstopperActivePointer(ActivePointer):
     """
-    pointer for showstopper
+    Active node pointer for showstopper
     """
 
-    def __init__(self, root: Node, j_start: int, starting_char: str) -> None:
+    def __init__(self, node: Node, j_start: int, edge_idx: int, length: int) -> None:
         """
         can be used when there was a case3 during the traversal -> the first time using the showstopper
         :param root: must be the root node
         """
-        assert root.is_root, "showstopper should only be instantiated from a root node (because of trick1)"
-        assert starting_char is not None, "at least one case3 must be occured previously; this char should be inputted"
+        # assert root.is_root, "showstopper should only be instantiated from a root node (because of trick1)"
+        # assert starting_char is not None, "at least one case3 must be occurred previously; this char should be inputted"
+        assert node is not None and j_start is not None and edge_idx is not None, "all inputs must be not None"
 
         super().__init__()
-        self.node = root
-        self.length = 1
+        self.node = node
+
+        # showstopper is always instantiated when there is case3 during normal traversal; but thanks to the rapid leaf
+        # extension trick, only the first last character needs to be actually traversed. hence, the length can only be 1 initially
+        self.length = length
         self.j_start = j_start
-        self.edge_idx = hash_ascii(starting_char)
+        self.edge_idx = edge_idx
         pass
 
     def get_existing_idx_to_compare(self) -> int:
+        """
+        Return the index of the existing character to compare to (against the inserting one)
+        """
         # use this method for showstopper
-        # assert not self.node.is_root, "this method shouldn't be used for root node"
 
         pointed_outgoing_edge = self.node.get_node_using_idx(self.edge_idx)
         start = pointed_outgoing_edge.start
@@ -583,7 +621,6 @@ class ShowstopperActivePointer(ActivePointer):
 
     def do_need_to_goto_next_node(self) -> bool:
         # this node is not properly pointed yet
-
         assert self.edge_idx is not None and self.length is not None, "showstopper pointer must always have edge_idx and length"
 
         pointed_outgoing_node = self.node.get_node_using_idx(self.edge_idx)
@@ -603,25 +640,29 @@ class ShowstopperActivePointer(ActivePointer):
         return start, end
 
 
-def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
-                          previous_branched_node: Node, global_end: GlobalEnd, root: Node, text: str) \
+def showstopper_extension(i: int, j: int, pointer: ShowstopperActivePointer,
+                          previous_branched_node: Optional[Node], global_end: GlobalEnd, root: Node, text: str) \
         -> tuple[bool, Optional[Node], Optional[SuffixLinkActivePointer]]:
     """
-    A: At embedded char -> case1 or case2-alt
-    B: Between start ~ end -> case2 or case3
-    modifies active node
+    Handles the showstopper execution.
 
-    :param j:
-    :param pointer:
-    :param text:
+    At each iteration, there can only be two cases:
+    A: Between start ~ end -> case2 or case3
+    B: At embedded char -> case1 or case2-alt
+    :param i: the index of the current iteration i.e. the index of the character we will be comparing in this function
+    :param j: the start index of the current substring we are trying to insert into the tree
+    :param pointer: the showstopper active node that points to the latest internal node
+    :param previous_branched_node: the previous_branched_node, if any
+
     :return:
     """
     is_case_three = False
     suffixlink_activenode = None
 
+    # A: there is still some characters left on the same edge as previous phase
+    # comparison happens between start ~ end
     if not pointer.do_need_to_goto_next_node():
-        # B: there is still some characters left on the same edge as previous phase
-        # comparison happens between start ~ end
+
 
         # case 3: same char
         existing_char_idx = pointer.get_existing_idx_to_compare()
@@ -632,27 +673,31 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
 
         # case 2: different char -> branch out
         if text[i] != text[existing_char_idx]:
-            previous_branched_node = branch_out(i, existing_char_idx, pointer.get_next_node_for_branch_out(),
+            previous_branched_node = branch_out(i, existing_char_idx, j, pointer.get_next_node_for_branch_out(),
                                                 pointer.node,
                                                 previous_branched_node, pointer, root, global_end, text)
             suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.j_start, pointer.edge_idx,
                                                             pointer.length)
             return is_case_three, previous_branched_node, suffixlink_activenode
 
-    # A: previous turn finished checking all chars in the previous edge
+    # B: previous turn finished checking all chars in the previous edge
     # -> in this turn, comparison happens at embedded char
     if pointer.do_need_to_goto_next_node():
-        edge_idx = hash_ascii(text[i])
+        edge_idx = hash_char(text[i])
 
         previous_node = pointer.node.get_node_using_idx(pointer.edge_idx)
         current_node = previous_node.get_node_using_starting_char(text[i])
 
         # case 2-alt: branch at the root; or, brunch at an internal node
         if current_node is None and previous_node.is_root or current_node is None and not previous_node.is_leaf:
-            # update active length
-            pointer.set_length(previous_node.get_end() - previous_node.start + 1)  # TODO i don't think we need this?
 
-            previous_node.connect_edge(text[i], Node(start=i, end=global_end))
+            # update active length
+            pointer.set_length(previous_node.get_end() - previous_node.start + 1)
+
+            new_node = Node(start=i, end=global_end)
+            new_node.suffix_starting_idx = j
+            previous_node.connect_edge(text[i], new_node)
+            previous_node.is_leaf = False
 
             # instantiating new suffixlink activenode for next extension
             suffixlink_activenode = SuffixLinkActivePointer(pointer.node, pointer.j_start, pointer.edge_idx,
@@ -670,9 +715,5 @@ def showstopper_extension(i: int, pointer: ShowstopperActivePointer,
             is_case_three = True
             return is_case_three, previous_branched_node, suffixlink_activenode
 
-        # case3
-        # if current_node is not None:
-        #     pass
-        # goes to the below block
 
     raise ValueError("shouldn't come here")

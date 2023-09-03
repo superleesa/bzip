@@ -1,5 +1,8 @@
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of run length decoder"
+
 from typing import Optional
-# import bitarray
 
 from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
 from elias import elias_decode
@@ -7,6 +10,10 @@ from original_bitarray import BitArray
 
 
 class BSTNode:
+    """
+    Represent the Binary Search Tree.
+    Used in Huffman decoder.
+    """
     def __init__(self, char: Optional[str] = None) -> None:
         self.left: Optional[BSTNode] = None
         self.right: Optional[BSTNode] = None
@@ -27,13 +34,15 @@ class BSTNode:
 
 def runlength_decoder(encoded_text: BitArray, code_table: list, bwt_length: int) -> str:
     """
+    Decode one run by one run by applying ELias decoding and huffman decoding.
 
-    :param encoded_text:
+    :param encoded_text: the encoded text in bitarray
     :param code_table: an array where each index represents the hashed character and its element represents the code word
-    :return:
+    :param bwt_length: the length of the original bwt string
+    :return: the decoded string
     """
 
-    # create binary search tree to look up bits
+    # create binary search tree for the codewords
     root = BSTNode()
 
     for i in range(len(code_table)):
@@ -70,13 +79,12 @@ def runlength_decoder(encoded_text: BitArray, code_table: list, bwt_length: int)
                 else:
                     raise ValueError("shouldn't come here")
 
+
     # actual decoding process
     decoded_chars = []
     counter = 0
 
     while counter < bwt_length:
-
-
         # each run starts with how many times a char happens, and then actual code
         # do elias decoding
         n_appearances, encoded_text = elias_decode(encoded_text)

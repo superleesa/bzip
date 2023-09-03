@@ -1,17 +1,18 @@
 from __future__ import annotations
+
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of an original BitArray class"
+
+
 from typing import Optional
 
 class BitArray:
     """
-    Bitarray, a wrapper class that represents a bitarray it is just an integer.
-    note: it must remember the number of bits (i.e. how many 0s at the left)
-    whenever something is added, increment num_bits
+    Bitarray, a wrapper class that represents a bitarray. Internally, it is just an integer.
 
-    -> when you write to file, ouput as byte object
-
+    note: it stores the number of bits as well to keep track of how many leading 0s
     note: this class does not support iterator. use getitem instead
-
-    note: instead of shifting multiple times do floor division (more efficient)
     """
 
     def __init__(self, num: int = 0, n_bits: int = 0) -> None:
@@ -21,8 +22,9 @@ class BitArray:
 
     def __getitem__(self, item):
         """
+        Supports both indexing and slicing
         note: we assume that bit shifting is a constant time operation (in reality it depends on cpu;however, the below
-         operations can easily be replaced by floor divisions and mod operations which are constant anyways)
+         operations can easily be replaced by floor divisions and mod operations which are constant)
         """
         # should support slicing too
         if isinstance(item, int):

@@ -1,9 +1,13 @@
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+
 from typing import Optional
+import sys
 
 from bwt import bwt_decode
 from runlength_decoder import runlength_decoder
 from elias import elias_decode
-from utilities import MAX_ASCII, MIN_ASCII, hash_char, hash_char_from_ascii
+from utilities import MAX_ASCII, MIN_ASCII, hash_char_from_ascii
 from original_bitarray import BitArray
 
 
@@ -40,35 +44,25 @@ def decoder(encoded_text: BitArray) -> str:
     n_unique_key (elias),
     table (ascii, elias run length, huffman codeword),
     main_text (elias length, huffman codeword)
-
-    :param encoded_text:
-    :return:
     """
     # separate the header and the body part
-    bwt_length, remainder = elias_decode(encoded_text)
-    n_unique_chars, remainder = elias_decode(remainder)
-    # print("bwt_length")
-    # print(bwt_length)
-    # print("n_unique_characters")
-    # print(n_unique_chars)
-    # print(remainder)
+    bwt_length, remainder = elias_decode(encoded_text)  # decoding bwt_length
+    n_unique_chars, remainder = elias_decode(remainder)  # decoding  n_unique_chars
 
-    body, code_table = split_table_and_body(remainder, n_unique_chars)
-    # print("code talbe")
-    # print(code_table)
-
-    # print(body)
-    decoded_text = runlength_decoder(body, code_table, bwt_length)
-
-
-    original_text = bwt_decode(decoded_text)
+    body, code_table = split_table_and_body(remainder, n_unique_chars)  # split the header and the body
+    decoded_text = runlength_decoder(body, code_table, bwt_length)  # runlength decoding
+    original_text = bwt_decode(decoded_text)  # bwt decoding
 
     return original_text
 
+
 if __name__ == "__main__":
-    # TODO later get input from the cmd
-    filename = "bwtencoded.bin"
-    with open(filename, "rb") as file:
+    _, encoded_text_filename = sys.argv
+
+    with open(encoded_text_filename, "rb") as file:
         ba = bytes_to_bitarray(file.read())
 
-        print(decoder(ba))
+    output_filename = "recovered.txt"
+    with open(output_filename, "w") as file:
+        file.write(decoder(ba))
+

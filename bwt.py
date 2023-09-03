@@ -1,22 +1,29 @@
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of BWT encoder and decoder"
+
 from typing import Optional
-from utilities import generate_random_string
+from utilities import hash_char
+from st2sa import suffix_array as get_suffix_array
 
 MIN_ASCII, MAX_ASCII = 37, 126
 
-def hash_ascii(char: str) -> int:
-    assert MIN_ASCII <= ord(char) <= MAX_ASCII or char == "$", "all characters must be in ascii value of 37-126, or $"
+def bwt_encode_with_ukkonen(text: str) -> str:
+    suffix_array = get_suffix_array(text)
 
-    if char == "$":
-        return 0
-    else:
-        # +1 to accommodate for "$"
-        return ord(char)-MIN_ASCII+1
+    last_items = [None]*len(suffix_array)
 
-def bwt_encode(text: str) -> str:
-    # use Ukkonen to generate the encoded text
-    pass
+    for i, index in enumerate(suffix_array):
+        last_item_index = (index-1 + len(suffix_array)-1) % len(suffix_array)
+        last_items[i] = text[last_item_index] if last_item_index != len(suffix_array)-1 else "$"
 
-def bwt_encode_naive(text: str):
+    return "".join(last_items)
+
+
+def bwt_encode_naive(text: str) -> str:
+    """
+    A naive implementation of bwt encoder.
+    """
 
     # create circular suffixes
     text = text + "$"
@@ -25,13 +32,25 @@ def bwt_encode_naive(text: str):
         circular_suffixes[start_idx] = text[start_idx:len(text)] + text[0:start_idx]
 
 
-    # sort based on the first character
+    # sort based on the first character, second character, ....
     sorted_circular_suffixes = sorted(circular_suffixes)
 
     return "".join([x[-1] for x in sorted_circular_suffixes])
 
 def get_order(char, i, order_table) -> int:
-    char_appearances = order_table[hash_ascii(char)]
+    """
+    Given a character, it returns its order among the same characters in the first column (or last) in the sorted suffixes.
+    Note that the order table isn't two-dimensional array but is one dimensional. In trade off, this function will traverse
+    through each appearance of the same character until it finds the one looking for.
+
+    :time complexity: O(X) where X represents the number of appearances of the same character in the suffixes.
+    :aux space complexity: O(1)
+    :param char: a character to find get order for
+    :param i: the index of the character
+    :param order_table: order table
+    :return: the order of the given character
+    """
+    char_appearances = order_table[hash_char(char)]
 
     prev_appearances_count = 0
     for char_idx in char_appearances:
@@ -44,16 +63,21 @@ def get_order(char, i, order_table) -> int:
 
 def bwt_decode(text: str) -> str:
     """
+    Implementation of BWT decoder. Use LF-mapping.
 
+    Note: order table = nOccurences table in lecture note
+
+    :time complexity: O(n) where n is the length of string
+    :aux space complexity: O(n) for the encoded string, rank and order table
     :param text: encoded text (text to decode)
-    :return:
+    :return: the original string
     """
     # create rank table and order table
     rank_table: list[Optional[int]] = [0]*(MAX_ASCII-MIN_ASCII+2)
     order_table: list[Optional[list[int]]] = [None]*(MAX_ASCII-MIN_ASCII+2)
     for i in range(len(text)):
         char = text[i]
-        ascii_index = hash_ascii(char)
+        ascii_index = hash_char(char)
 
         if rank_table[ascii_index] == 0:
             order_table[ascii_index] = []
@@ -76,26 +100,9 @@ def bwt_decode(text: str) -> str:
         current_char = text[l_idx]
 
         decoded_text.append(current_char)
-        l_idx = rank_table[hash_ascii(current_char)] + get_order(current_char, l_idx, order_table)
+        l_idx = rank_table[hash_char(current_char)] + get_order(current_char, l_idx, order_table)
 
     decoded_text.pop()  # pop "$"
     decoded_text.reverse()
 
     return "".join(decoded_text)
-
-if __name__ == "__main__":
-    successful_cases = []
-    for _ in range(1000):
-        text = generate_random_string()
-        # print(text)
-        if text != bwt_decode(bwt_encode_naive(text)):
-            successful_cases.append(text)
-
-    print(successful_cases)
-
-    # text = "isisisis"
-    # encoded = bwt_encode_naive(text)
-    # print(encoded)
-    #
-    # decoded = bwt_decode(encoded)
-    # print(decoded)

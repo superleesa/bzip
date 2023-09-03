@@ -1,3 +1,7 @@
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+
+
 import random
 
 MIN_ASCII, MAX_ASCII = 37, 126

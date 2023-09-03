@@ -1,11 +1,17 @@
-from bitarray import bitarray
-from math import ceil, log2
-from bitarray.util import ba2int
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of Elias encoder and decoder"
 
 from original_bitarray import BitArray
 
 
 def elias_encode(num: int) -> BitArray:
+    """
+    Implementation of Elias encoder.
+
+    :param num: a positive integer to encode
+    :return: encoded text in BitArray
+    """
     assert num > 0, "elias encode does not support 0 and negative numbers"
 
     components = []
@@ -28,15 +34,14 @@ def elias_encode(num: int) -> BitArray:
         component = components[i]
         encoded_num.extend(component)
 
-    # print("encoded num")
-    # print(encoded_num)
-    # print(type(encoded_num))
     return encoded_num
 
 
-
-
 def decimal_to_bitarray(num: int) -> BitArray:
+    """
+    Convert from decimal to bitarray
+    :time complexity: O(num digits)
+    """
     result = BitArray()
 
     while num != 0:
@@ -48,32 +53,25 @@ def decimal_to_bitarray(num: int) -> BitArray:
 
 
 def elias_decode(bits: BitArray) -> tuple[int, BitArray]:
+    """
+    Implementation of Elias decoder.
+
+    :param bits: bitarray encoded with Elias encoder
+    :return: the original integer, and any remained bitarray portion
+    """
     if len(bits) == 1:
         return 1, BitArray()
     start, end = 0, 1
 
     while True:
         component = bits[start:end]
-        # print("================")
-        # print(component)
         if component[0] == 1:
             break
 
         component.set_first_bit_to_one()
         start = end
         end = start + component.to_decimal()+1
-        # component = bits[start:end]
 
     remainder = bits[end:]  # note: this process is constant (see the implementation)
 
     return component.to_decimal(), remainder
-
-
-if __name__ == "__main__":
-    # print(elias_decode(elias_encode(100)))
-
-    not_successful = []
-    for test_num in range(10000, 100000):
-        if test_num != elias_decode(elias_encode(test_num))[0]:
-            not_successful.append(test_num)
-    print(not_successful)

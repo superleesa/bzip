@@ -1,16 +1,23 @@
 from __future__ import annotations
+
+__author__ = "Satoshi Kashima"
+__sid__ = 32678940
+__description__ = "The implementation of runlength encoder"
+
+
 from typing import Optional
-from math import log10, ceil
 
 import heapq as hq
-# import bitarray
 
-from elias import elias_encode, decimal_to_bitarray
+from elias import elias_encode
 from utilities import MIN_ASCII, MAX_ASCII, hash_char, hash_back_tochar
 from original_bitarray import BitArray
 
 
 class HeapElement:
+    """
+    Represent an element that is inserted into heap.
+    """
     def __init__(self, freq: int, num_chars: int, chars_asciis: list[int]) -> None:
         self.freq: int = freq
         self.num_chars: int = num_chars
@@ -25,9 +32,13 @@ class HeapElement:
 
 def runlength_encoder(text: str) -> tuple[BitArray, BitArray, BitArray]:
     """
+    Applies runlength encoding to given text. Uses Elias to encode length and Huffman to encode characters.
+
+    :time complexity: O(nlogn) for huffman to store subtrees into the heap; (Elias is linear time) where n = len(text)
+    :aux space complexity: O(n+m) where m represents the total encoded bitarray length
 
     :param text: an encoded text using BWT
-    :return: bitarray
+    :return: bitarray representing the encoded text
     """
 
 
@@ -91,7 +102,7 @@ def runlength_encoder(text: str) -> tuple[BitArray, BitArray, BitArray]:
 
     # traverse through the text to do run length encoding
     # for each consecutive same chars, combine them all together e.g. aaaa -> 4a
-    # elias + huffman
+    # apply elias and huffman
     encoded_text = BitArray()
     accum = 1
     prev_char = text[0]
@@ -127,23 +138,10 @@ def runlength_encoder(text: str) -> tuple[BitArray, BitArray, BitArray]:
 
 
 def create_fixed_length_ascii_bitarray(char: str):
-    # TODO change this later on
     assert len(char) == 1, "length of the string must be 1"
 
     ascii_value = ord(char)  # get the ASCII value of the character
     return BitArray(ascii_value, 7)
-
-
-# ascii_val = ord(char)
-#     ascii_val_legnth = ceil(log10(ascii_val))
-#     n_paddings = 7 - ascii_val_legnth
-#     ascii_bitarray = bitarray.bitarray("0"*n_paddings)
-#     ascii_bitarray.extend(bitarray.bitarray(ascii_val))
-
-if __name__ == "__main__":
-    encoded_num_unique_chars, encoded_text, encoded_code_table = runlength_encoder("aaaabbbcccdddee")
-    print(encoded_text)
-
 
 
 
